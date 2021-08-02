@@ -1,3 +1,4 @@
+import boto3
 import fetchprojects
 import glob
 import json
@@ -16,7 +17,7 @@ WORKSPACE_NAME = 'workspace'
 WORKSPACE_PATH = SCRIPT_PATH + WORKSPACE_NAME + '/'
 OREO_PATH = os.path.normpath(os.path.join(SCRIPT_PATH, '../oreo-artifact/oreo/python_scripts')) + '/'
 DASH = '--'
-SLASH = '-s'
+SLASH = '-s-'
 
 PROJECT_SEPERATOR = '===============================================\n==============================================='
 VERSION_SEPERATOR = '-----------------------------'
@@ -50,7 +51,7 @@ def log_error(message):
     print(message)
 
 
-def main(connection):
+def main(connection, s3):
     with open(SCRIPT_PATH + 'projects.txt') as f:
         for line in f:
             project = json.loads(line)
@@ -88,19 +89,14 @@ def main(connection):
                 print('Processing')
                 process(
                     f'{SCRIPT_PATH}{WORKSPACE_NAME}/{project_folder_name}',
-                    f'{WORKSPACE_NAME}/processing/{project["name"].replace("-",DASH).replace("/", SLASH)}{SLASH}{project_version}'
+                    f'{WORKSPACE_NAME}/processing/{serialize_project_version_name(project["name"], project_version)}'
                 )
                 log_progress('Extracted java files')
 
                 calculate_metric()
                 log_progress('Generated metrics')
-                    
-                with open(OREO_PATH + '1_metric_output/mlcc_input.file') as f:
-                    with connection.cursor() as cursor:
-                        # Create a new record
-                        sql = "INSERT INTO `snippet` VALUES (%s, %s, %s, %s)"
-                        cursor.execute(sql, (project['name'], project_version, guava_version, f.read()))
-                    connection.commit()
+
+                save_version(connection, s3, project["name"], project_version, guava_version)
 
                 shutil.rmtree(f'{WORKSPACE_PATH}processing')
                 print(VERSION_SEPERATOR)
@@ -136,7 +132,18 @@ def git_clone(source):
 def pexpect_output_last_line(pexpect_output):
     pexpect_output = [line for line in pexpect_output.split('\r\n') if line != '']
     return pexpect_output[-1]
-    
+
+
+def serialize_project_version_name(project_name, project_version):
+    # There is no slash inside versions of the dataset
+    # It should be fine to extract version back
+    return f'{serialize_name(project_name)}{SLASH}{project_version}'
+
+
+# The initial name is a path, which contains '/' 
+def serialize_name(name):
+    return name.replace('-',DASH).replace('/', SLASH)
+
 
 # Folder needs to be an absolute path
 def process(folder, new_name):
@@ -145,7 +152,7 @@ def process(folder, new_name):
 
     files = glob.glob(folder + '/**/*.java', recursive=True)
     for raw_path in files:
-        new_file_name = raw_path[len(folder) + 1:].replace('-',DASH).replace('/', SLASH)
+        new_file_name = serialize_name(raw_path[len(folder) + 1:])
         shutil.copy(raw_path, new_folder + '/' + new_file_name)
 
     print(f'Found {len(files)} files')
@@ -210,6 +217,21 @@ def create_project_database(connection, name, source):
     connection.commit()
 
 
+def save_version(connection, s3, project_name, project_version, guava_version):
+    with connection.cursor() as cursor:
+        # Create a new record
+        sql = "INSERT INTO `snippet` VALUES (%s, %s, %s, %s)"
+        new_file_name = serialize_project_version_name(project_name, project_version)
+        cursor.execute(sql, (project_name, project_version, guava_version, new_file_name))
+    connection.commit()
+
+    snippet_path = OREO_PATH + '1_metric_output/mlcc_input.file'
+    with open(snippet_path, 'rb') as f:
+        s3.Bucket('update-helper').put_object(Key=new_file_name, Body=f)
+        os.remove(snippet_path)
+
+
 if __name__ == '__main__':
     with pymysql.connect(host=HOST, port=PORT, user=USER, password=PASSWORD, database=DATABASE) as connection:
-        main(connection)
+        s3 = boto3.resource('s3')
+        main(connection, s3)
