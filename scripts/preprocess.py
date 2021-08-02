@@ -1,3 +1,4 @@
+import argparse
 import boto3
 import fetchprojects
 import glob
@@ -51,10 +52,17 @@ def log_error(message):
     print(message)
 
 
-def main(connection, s3):
+def main(connection, s3, from_project, from_version):
     with open(SCRIPT_PATH + 'projects.txt') as f:
         for line in f:
             project = json.loads(line)
+            if from_project is not None:
+                if project['name'] != from_project:
+                    log_progress('Skipped project ' + project['name'])
+                    continue
+                else:
+                    from_project = None
+
             project_folder_name = project['source'].rsplit('/', 1)[-1]
             source = project['source'] + '.git'
 
@@ -70,6 +78,13 @@ def main(connection, s3):
             create_project_database(connection, project['name'], project['source'])
 
             for project_version in project['versions']:
+                if from_version is not None:
+                    if project_version != from_version:
+                        log_progress('Skipped version ' + project_version)
+                        continue
+                    else:
+                        from_version = None
+
                 guava_version = find_guava_version(project['name'], project_version)
                 if guava_version is None:
                     # TODO: consider changing this to progress instead of error
@@ -101,10 +116,15 @@ def main(connection, s3):
                 shutil.rmtree(f'{WORKSPACE_PATH}processing')
                 print(VERSION_SEPERATOR)
 
+            if from_version is not None:
+                raise ValueError(f'There is no version {from_version} in the chosen project')
             print(PROJECT_SEPERATOR)
             
             # Remove processed repo
             shutil.rmtree(f'{WORKSPACE_PATH}{project_folder_name}')
+
+        if from_project is not None:
+            raise ValueError(f'There is no project {from_project}')
 
 
 def git_clone(source):
@@ -232,6 +252,15 @@ def save_version(connection, s3, project_name, project_version, guava_version):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Use the file "projects.txt" produced by "fetchprojects.py" to scrape GitHub and save the processed code to databases.\nThe argument values are taken from "projects.py"')
+    parser.add_argument('--from-project', '-p', help='start processing from this project')
+    parser.add_argument('--from-version', '-v', help='start processing from this version')
+    args = parser.parse_args()
+    from_project = args.from_project
+    from_version = args.from_version
+    if (from_project and not from_version) or (not from_project and from_version):
+        print('--from-project and --from-version need to be both set or empty')
+
     with pymysql.connect(host=HOST, port=PORT, user=USER, password=PASSWORD, database=DATABASE) as connection:
         s3 = boto3.resource('s3')
-        main(connection, s3)
+        main(connection, s3, from_project, from_version)
