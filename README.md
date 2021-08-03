@@ -11,7 +11,7 @@ git clone https://github.com/Mondego/oreo-artifact.git
 cd ./oreo-artifact/oreo/java-parser && ant metric # Generate oreo executable
 ```
 # Running
-Prepare a `.env` file at the root with the following value: LIBRARIESIO_KEY, MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE
+Prepare a `.env` file at the root with the following value: LIBRARIESIO_KEY, MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 ```
 python3 -m pipenv shell # Load environment
 python3 ./scripts/fetchprojects.py # Populate update-helper/scripts/projects.txt with projects depending on guava
