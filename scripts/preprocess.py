@@ -258,7 +258,15 @@ def calculate_metric():
 def create_project_database(connection, name, source):
     with connection.cursor() as cursor:
         sql = "INSERT INTO `project` VALUES (%s, %s)"
-        cursor.execute(sql, (name, source))
+        try:
+            cursor.execute(sql, (name, source))
+        except pymysql.err.IntegrityError as e:
+            # Ignore duplicate entry
+            duplicate_message = 'Duplicate entry \'' + name + '\' for key \'project.PRIMARY\''
+            if e.args[0] == 1062 and e.args[1] == duplicate_message:
+                pass
+            else:
+                raise e
     connection.commit()
 
 
