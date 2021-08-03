@@ -1,5 +1,6 @@
 import argparse
 import boto3
+import datetime
 import fetchprojects
 import glob
 import json
@@ -17,6 +18,8 @@ SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
 WORKSPACE_NAME = 'workspace'
 WORKSPACE_PATH = SCRIPT_PATH + WORKSPACE_NAME + '/'
 OREO_PATH = os.path.normpath(os.path.join(SCRIPT_PATH, '../oreo-artifact/oreo/python_scripts')) + '/'
+OREO_RESULT_PATH = OREO_PATH + '1_metric_output/'
+
 DASH = '--'
 SLASH = '-s-'
 
@@ -32,12 +35,14 @@ DATABASE = os.environ['MYSQL_DATABASE']
 Path(WORKSPACE_PATH).mkdir(exist_ok=True)
 
 progress_log = logging.getLogger('progress_log')
-progress_handler = logging.FileHandler(f'{WORKSPACE_PATH}preprocess.out')
+progress_log_file = 'preprocess.out'
+progress_handler = logging.FileHandler(f'{WORKSPACE_PATH}{progress_log_file}')
 progress_log.addHandler(progress_handler)
 progress_log.setLevel(logging.DEBUG)
 
 error_log = logging.getLogger('error_log')
-error_handler = logging.FileHandler(f'{WORKSPACE_PATH}preprocess.err')
+error_log_file = 'preprocess.err'
+error_handler = logging.FileHandler(f'{WORKSPACE_PATH}{error_log_file}')
 error_log.addHandler(error_handler)
 error_log.setLevel(logging.DEBUG)
 
@@ -53,6 +58,11 @@ def log_error(message):
 
 
 def main(connection, s3, from_project, from_version):
+    start_information = f' from {from_project} at {from_version}' if from_project is not None else ''
+    log_progress(f'\n\nRunning at {str(datetime.datetime.now())}{start_information}')
+    log_progress('Cleaning up')
+    clean_up()
+
     with open(SCRIPT_PATH + 'projects.txt') as f:
         for line in f:
             project = json.loads(line)
@@ -113,6 +123,7 @@ def main(connection, s3, from_project, from_version):
 
                 save_version(connection, s3, project["name"], project_version, guava_version)
 
+                clean_up_oreo_result()
                 shutil.rmtree(f'{WORKSPACE_PATH}processing')
                 print(VERSION_SEPERATOR)
 
@@ -125,6 +136,20 @@ def main(connection, s3, from_project, from_version):
 
         if from_project is not None:
             raise ValueError(f'There is no project {from_project}')
+
+
+def clean_up():
+    for name in os.listdir(WORKSPACE_PATH):
+        if name == progress_log_file or name == error_log_file:
+            continue
+        shutil.rmtree(f'{WORKSPACE_PATH}{name}')
+
+    clean_up_oreo_result()
+
+
+def clean_up_oreo_result():
+    for name in os.listdir(OREO_RESULT_PATH):
+        os.remove(f'{OREO_RESULT_PATH}{name}')
 
 
 def git_clone(source):
@@ -248,7 +273,6 @@ def save_version(connection, s3, project_name, project_version, guava_version):
     snippet_path = OREO_PATH + '1_metric_output/mlcc_input.file'
     with open(snippet_path, 'rb') as f:
         s3.Bucket('update-helper').put_object(Key=new_file_name, Body=f)
-        os.remove(snippet_path)
 
 
 if __name__ == '__main__':
