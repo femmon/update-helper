@@ -240,6 +240,7 @@ def checkout_git_version(repo, version):
 
 
 def calculate_metric():
+    retry = 0
     subprocess.Popen(
         ['python3', 'metricCalculationWorkManager.py', '1', 'd', f'{WORKSPACE_PATH}processing'],
         cwd = OREO_PATH
@@ -252,6 +253,23 @@ def calculate_metric():
                 pass
             if line == 'done!\n':
                 break
+            else:
+                target_command = 'java -jar ../java-parser/dist/metricCalculator.jar ' + OREO_PATH + 'output/1.txt dir'
+                ps = subprocess.run(['ps', '-e', '-o', 'command'], stdout = subprocess.PIPE)
+                running_processes = ps.stdout.decode().split('\n')
+                if target_command in running_processes:
+                    pass
+                elif retry == 3:
+                    error_message = 'Metric calculation has stopped unexpectedly'
+                    log_error(error_message)
+                    raise RuntimeError(error_message)
+                else:
+                    retry +=1
+                    log_progress('Retrying metric calculation')
+                    subprocess.Popen(
+                        ['python3', 'metricCalculationWorkManager.py', '1', 'd', f'{WORKSPACE_PATH}processing'],
+                        cwd = OREO_PATH
+                    )
 
 
 # Database
