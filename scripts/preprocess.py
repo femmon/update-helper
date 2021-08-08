@@ -10,6 +10,7 @@ import pexpect
 import pymysql
 import shutil
 import subprocess
+import sys
 import time
 import logging
 
@@ -310,6 +311,7 @@ if __name__ == '__main__':
     from_version = args.from_version
     if (from_project and not from_version) or (not from_project and from_version):
         print('--from-project and --from-version need to be both set or empty')
+        sys.exit()
 
     with pymysql.connect(host=HOST, port=PORT, user=USER, password=PASSWORD, database=DATABASE) as connection:
         s3 = boto3.resource('s3')
