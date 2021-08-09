@@ -1,8 +1,10 @@
 import argparse
 import boto3
+import csv
 import datetime
 import fetchprojects
 import glob
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -20,6 +22,7 @@ WORKSPACE_NAME = 'workspace'
 WORKSPACE_PATH = SCRIPT_PATH + WORKSPACE_NAME + '/'
 OREO_PATH = os.path.normpath(os.path.join(SCRIPT_PATH, '../oreo-artifact/oreo/python_scripts')) + '/'
 OREO_RESULT_PATH = OREO_PATH + '1_metric_output/'
+TEMP_PATH = WORKSPACE_PATH + 'temp.csv'
 
 DASH = '--'
 SLASH = '-s-'
@@ -113,10 +116,12 @@ def main(connection, s3, from_project, from_version):
                     continue
 
                 print('Processing')
-                process(
+                file_dict = process(
                     f'{SCRIPT_PATH}{WORKSPACE_NAME}/{project_folder_name}',
-                    f'{WORKSPACE_NAME}/processing/{serialize_project_version_name(project["name"], project_version)}'
+                    f'{SCRIPT_PATH}{WORKSPACE_NAME}/processing/{serialize_project_version_name(project["name"], project_version)}'
                 )
+                print(f'Found {len(file_dict)} files')
+                save_file_hash(connection, project['name'], project_version, file_dict)
                 log_progress('Extracted java files')
 
                 calculate_metric()
@@ -140,6 +145,11 @@ def main(connection, s3, from_project, from_version):
 
 
 def clean_up():
+    try:
+        os.remove(TEMP_PATH)
+    except FileNotFoundError:
+        pass
+
     for name in os.listdir(WORKSPACE_PATH):
         if name == progress_log_file or name == error_log_file:
             continue
@@ -192,16 +202,20 @@ def serialize_name(name):
 
 
 # Folder needs to be an absolute path
-def process(folder, new_name):
-    new_folder = SCRIPT_PATH + new_name
-    Path(new_folder).mkdir(parents=True)
+def process(src_folder, des_folder):
+    Path(des_folder).mkdir(parents=True)
 
-    files = glob.glob(folder + '/**/*.java', recursive=True)
+    file_dict = {}
+
+    files = glob.glob(src_folder + '/**/*.java', recursive=True)
     for raw_path in files:
-        new_file_name = serialize_name(raw_path[len(folder) + 1:])
-        shutil.copy(raw_path, new_folder + '/' + new_file_name)
+        relative_file_path = raw_path[len(src_folder) + 1:]
+        new_file_name = hashlib.sha224(relative_file_path.encode()).hexdigest() + '.java'
+        shutil.copy(raw_path, des_folder + '/' + new_file_name)
 
-    print(f'Found {len(files)} files')
+        file_dict[relative_file_path] = new_file_name
+
+    return file_dict
 
 
 def find_guava_version(project_name, project_version):
@@ -213,6 +227,7 @@ def find_guava_version(project_name, project_version):
 
 
 def checkout_git_version(repo, version):
+    print('Checkiing out ' + version)
     checkout_output = pexpect.run(
         f'git checkout tags/{version}',
         cwd=repo,
@@ -289,6 +304,24 @@ def create_project_database(connection, name, source):
     connection.commit()
 
 
+def save_file_hash(connection, project_name, project_version, file_dict):
+    with open(TEMP_PATH, 'w') as data:
+        data_writer = csv.writer(data)
+        for real_path, hash_path in file_dict.items():
+            data_writer.writerow([project_name, project_version, real_path, hash_path])
+
+    with connection.cursor() as cursor:
+        # Remove existing data because LOAD DATA LOCAL will ignore duplicate keys
+        delete_existing_query = 'DELETE FROM `file` WHERE project_name=%s AND project_version=%s'
+        cursor.execute(delete_existing_query, (project_name, project_version))
+
+        load_new_query = 'LOAD DATA LOCAL INFILE %s INTO TABLE `file` FIELDS TERMINATED BY "," LINES TERMINATED BY "\n"'
+        cursor.execute(load_new_query, (TEMP_PATH))
+        
+    connection.commit()
+    os.remove(TEMP_PATH)
+
+
 def save_version(connection, s3, project_name, project_version, guava_version):
     with connection.cursor() as cursor:
         # Create a new record
@@ -313,6 +346,6 @@ if __name__ == '__main__':
         print('--from-project and --from-version need to be both set or empty')
         sys.exit()
 
-    with pymysql.connect(host=HOST, port=PORT, user=USER, password=PASSWORD, database=DATABASE) as connection:
+    with pymysql.connect(host=HOST, port=PORT, user=USER, password=PASSWORD, database=DATABASE, local_infile=True) as connection:
         s3 = boto3.resource('s3')
         main(connection, s3, from_project, from_version)
