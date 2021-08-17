@@ -3,6 +3,7 @@ import boto3
 import csv
 import datetime
 import fetchprojects
+from gitcontroller import GitController
 import glob
 import hashlib
 import json
@@ -78,11 +79,12 @@ def main(connection, s3, from_project, from_version):
                     from_project = None
 
             project_folder_name = project['source'].rsplit('/', 1)[-1]
+            project_folder_path = f'{WORKSPACE_PATH}{project_folder_name}'
             source = project['source'] + '.git'
 
             print(f'Cloning "{project["name"]}" from {source}')
             try:
-                git_clone(source)
+                git_controller = GitController(project_folder_path, source)
                 log_progress(f'Cloned {project["name"]}')
             except RuntimeError as e:
                 log_error(str(e))
@@ -161,28 +163,6 @@ def clean_up():
 def clean_up_oreo_result():
     for name in os.listdir(OREO_RESULT_PATH):
         os.remove(f'{OREO_RESULT_PATH}{name}')
-
-
-def git_clone(source):
-    clone_output = pexpect.run(
-        'git clone ' + source,
-        # Enter credential when asked. This should stop the clone because of unauthorization
-        events={
-            "Username for 'https://github.com':": "Username\n",
-            "Password for 'https://Username@github.com':": "Password\n"
-        },
-        cwd=WORKSPACE_PATH,
-        timeout=None
-    ).decode()
-    last_output_line = pexpect_output_last_line(clone_output)
-
-    if last_output_line.startswith('fatal:'):
-        raise RuntimeError(f'Can\'t clone {source} ("{last_output_line}")')
-    elif last_output_line.endswith('done.'):
-        # Success
-        pass
-    else:
-        raise RuntimeError(f'Can\'t clone {source} for unknown reason ("{last_output_line}")')
 
 
 def pexpect_output_last_line(pexpect_output):
