@@ -109,7 +109,7 @@ def main(connection, s3, from_project, from_version):
                     continue
                 log_progress(f'{project["name"]} at version {project_version} uses Guava {guava_version}')
 
-                if checkout_git_version(f'{WORKSPACE_PATH}{project_folder_name}', project_version):
+                if git_controller.checkout(project_version):
                     log_progress(f'Checked out {project["name"]} at version {project_version}')
                 else:
                     # TODO: consider changing this to progress instead of error
@@ -165,11 +165,6 @@ def clean_up_oreo_result():
         os.remove(f'{OREO_RESULT_PATH}{name}')
 
 
-def pexpect_output_last_line(pexpect_output):
-    pexpect_output = [line for line in pexpect_output.split('\r\n') if line != '']
-    return pexpect_output[-1]
-
-
 def serialize_project_version_name(project_name, project_version):
     # There is no slash inside versions of the dataset
     # It should be fine to extract version back
@@ -204,35 +199,6 @@ def find_guava_version(project_name, project_version):
     for dependency in version_info['dependencies']:
         if dependency['name'] == 'com.google.guava:guava':
             return dependency['requirements']
-
-
-def checkout_git_version(repo, version):
-    print('Checkiing out ' + version)
-    checkout_output = pexpect.run(
-        f'git checkout tags/{version}',
-        cwd=repo,
-        timeout=None
-    ).decode()
-
-    checkout_output_last_line = pexpect_output_last_line(checkout_output)
-    failed_clone_message = f'error: pathspec \'tags/{version}\' did not match any file(s) known to git.'
-    is_success = checkout_output_last_line.startswith('HEAD is now at ')
-    if checkout_output_last_line == failed_clone_message or not is_success:
-        version = 'v' + version
-        print('Checkout again using tag ' + version)
-        checkout_output = pexpect.run(
-            f'git checkout tags/{version}',
-            cwd=repo,
-            timeout=None
-        ).decode()
-
-        checkout_output_last_line = pexpect_output_last_line(checkout_output)
-        failed_clone_message = f'error: pathspec \'tags/{version}\' did not match any file(s) known to git.'
-        is_success = checkout_output_last_line.startswith('HEAD is now at ')
-        if checkout_output_last_line == failed_clone_message or not is_success:
-            return False
-
-    return True
 
 
 def calculate_metric():
