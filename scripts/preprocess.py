@@ -5,21 +5,18 @@ import datetime
 import fetchprojects
 from gitcontroller import GitController
 import json
+from oreocontroller import OreoController
 import os
 from pathlib import Path
 import pymysql
 import shutil
-import subprocess
 import sys
-import time
 import logging
 
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
 WORKSPACE_NAME = 'workspace'
 WORKSPACE_PATH = SCRIPT_PATH + WORKSPACE_NAME + '/'
-OREO_PATH = os.path.normpath(os.path.join(SCRIPT_PATH, '../oreo-artifact/oreo/python_scripts')) + '/'
-OREO_RESULT_PATH = OREO_PATH + '1_metric_output/'
 TEMP_PATH = WORKSPACE_PATH + 'temp.csv'
 
 DASH = '--'
@@ -62,8 +59,11 @@ def log_error(message):
 def main(connection, s3, from_project, from_version):
     start_information = f' from {from_project} at {from_version}' if from_project is not None else ''
     log_progress(f'\n\nRunning at {str(datetime.datetime.now())}{start_information}')
+    oreo_path = os.path.normpath(os.path.join(SCRIPT_PATH, '../oreo-artifact')
+    oreo_controller = OreoController() + '/')
+
     log_progress('Cleaning up')
-    clean_up()
+    clean_up(oreo_controller)
 
     with open(SCRIPT_PATH + 'projects.txt') as f:
         for line in f:
@@ -121,12 +121,16 @@ def main(connection, s3, from_project, from_version):
                 save_file_hash(connection, project['name'], project_version, file_dict)
                 log_progress('Extracted java files')
 
-                calculate_metric()
+                try:
+                    oreo_controller.calculate_metric(f'{WORKSPACE_PATH}processing')
+                except RuntimeError as e:
+                    log_error(str(e))
+                    return
                 log_progress('Generated metrics')
 
-                save_version(connection, s3, project["name"], project_version, guava_version)
+                save_version(connection, s3, project["name"], project_version, guava_version, oreo_controller.snippet_path)
 
-                clean_up_oreo_result()
+                oreo_controller.clean_up_metric()
                 shutil.rmtree(f'{WORKSPACE_PATH}processing')
                 print(VERSION_SEPERATOR)
 
@@ -141,7 +145,7 @@ def main(connection, s3, from_project, from_version):
             raise ValueError(f'There is no project {from_project}')
 
 
-def clean_up():
+def clean_up(oreo_controller):
     try:
         os.remove(TEMP_PATH)
     except FileNotFoundError:
@@ -152,12 +156,7 @@ def clean_up():
             continue
         shutil.rmtree(f'{WORKSPACE_PATH}{name}')
 
-    clean_up_oreo_result()
-
-
-def clean_up_oreo_result():
-    for name in os.listdir(OREO_RESULT_PATH):
-        os.remove(f'{OREO_RESULT_PATH}{name}')
+    oreo_controller.clean_up_metric()
 
 
 def serialize_project_version_name(project_name, project_version):
@@ -177,39 +176,6 @@ def find_guava_version(project_name, project_version):
     for dependency in version_info['dependencies']:
         if dependency['name'] == 'com.google.guava:guava':
             return dependency['requirements']
-
-
-def calculate_metric():
-    retry = 0
-    subprocess.Popen(
-        ['python3', 'metricCalculationWorkManager.py', '1', 'd', f'{WORKSPACE_PATH}processing'],
-        cwd = OREO_PATH
-    )
-
-    while True:
-        time.sleep(10)
-        with open(OREO_PATH + 'metric.out') as f:
-            for line in f:
-                pass
-            if line == 'done!\n':
-                break
-            else:
-                target_command = 'java -jar ../java-parser/dist/metricCalculator.jar ' + OREO_PATH + 'output/1.txt dir'
-                ps = subprocess.run(['ps', '-e', '-o', 'command'], stdout = subprocess.PIPE)
-                running_processes = ps.stdout.decode().split('\n')
-                if target_command in running_processes:
-                    pass
-                elif retry == 3:
-                    error_message = 'Metric calculation has stopped unexpectedly'
-                    log_error(error_message)
-                    raise RuntimeError(error_message)
-                else:
-                    retry +=1
-                    log_progress('Retrying metric calculation')
-                    subprocess.Popen(
-                        ['python3', 'metricCalculationWorkManager.py', '1', 'd', f'{WORKSPACE_PATH}processing'],
-                        cwd = OREO_PATH
-                    )
 
 
 # Database
@@ -246,7 +212,7 @@ def save_file_hash(connection, project_name, project_version, file_dict):
     os.remove(TEMP_PATH)
 
 
-def save_version(connection, s3, project_name, project_version, guava_version):
+def save_version(connection, s3, project_name, project_version, guava_version, snippet_path):
     with connection.cursor() as cursor:
         # Create a new record
         sql = "INSERT INTO `snippet` VALUES (%s, %s, %s, %s)"
@@ -254,7 +220,6 @@ def save_version(connection, s3, project_name, project_version, guava_version):
         cursor.execute(sql, (project_name, project_version, guava_version, new_file_name))
     connection.commit()
 
-    snippet_path = OREO_PATH + '1_metric_output/mlcc_input.file'
     with open(snippet_path, 'rb') as f:
         s3.Bucket('update-helper').put_object(Key=new_file_name, Body=f)
 
