@@ -22,9 +22,6 @@ TEMP_PATH = WORKSPACE_PATH + 'temp.csv'
 DASH = '--'
 SLASH = '-s-'
 
-PROJECT_SEPERATOR = '===============================================\n==============================================='
-VERSION_SEPERATOR = '-----------------------------'
-
 HOST = os.environ['MYSQL_HOST']
 PORT = int(os.environ['MYSQL_PORT'])
 USER = os.environ['MYSQL_USER']
@@ -47,11 +44,13 @@ error_log.setLevel(logging.DEBUG)
 
 
 def log_progress(message):
+    message = f'{str(datetime.datetime.now())}: {message}'
     progress_log.info(message)
     print(message)
 
 
 def log_error(message):
+    message = f'{str(datetime.datetime.now())}: {message}'
     error_log.warning(message)
     print(message)
 
@@ -67,6 +66,8 @@ def main(connection, s3, from_project, from_version):
 
     with open(SCRIPT_PATH + 'projects.txt') as f:
         for line in f:
+            PROJECT_SEPERATOR = '===============================================\n==============================================='
+            print(PROJECT_SEPERATOR)
             project = json.loads(line)
             if from_project is not None:
                 if project['name'] != from_project:
@@ -74,6 +75,8 @@ def main(connection, s3, from_project, from_version):
                     continue
                 else:
                     from_project = None
+                    # Make sure version is reset as well if move to a new project without getting to 'from_version'
+                    from_version = None
 
             project_folder_name = project['source'].rsplit('/', 1)[-1]
             project_folder_path = f'{WORKSPACE_PATH}{project_folder_name}'
@@ -85,12 +88,13 @@ def main(connection, s3, from_project, from_version):
                 log_progress(f'Cloned {project["name"]}')
             except RuntimeError as e:
                 log_error(str(e))
-                print(PROJECT_SEPERATOR)
                 continue
             
             create_project_database(connection, project['name'], project['source'])
 
             for project_version in project['versions']:
+                VERSION_SEPERATOR = '-----------------------------'
+                print(VERSION_SEPERATOR)
                 if from_version is not None:
                     if project_version != from_version:
                         log_progress('Skipped version ' + project_version)
@@ -100,18 +104,14 @@ def main(connection, s3, from_project, from_version):
 
                 guava_version = find_guava_version(project['name'], project_version)
                 if guava_version is None:
-                    # TODO: consider changing this to progress instead of error
-                    log_error(f'{project["name"]} at version {project_version} doesn\'t use Guava')
-                    print(VERSION_SEPERATOR)
+                    log_progress(f'{project["name"]} at version {project_version} doesn\'t use Guava')
                     continue
                 log_progress(f'{project["name"]} at version {project_version} uses Guava {guava_version}')
 
                 if git_controller.checkout(project_version):
                     log_progress(f'Checked out {project["name"]} at version {project_version}')
                 else:
-                    # TODO: consider changing this to progress instead of error
-                    log_error(f'Couldn\'t check out {project["name"]} at version {project_version}')
-                    print(VERSION_SEPERATOR)
+                    log_progress(f'Couldn\'t check out {project["name"]} at version {project_version}')
                     continue
 
                 print('Processing')
@@ -119,7 +119,7 @@ def main(connection, s3, from_project, from_version):
                 file_dict = git_controller.gather_java(f'{WORKSPACE_PATH}processing/{serialized_folder_name}')
                 print(f'Found {len(file_dict)} files')
                 save_file_hash(connection, project['name'], project_version, file_dict)
-                log_progress('Extracted java files')
+                log_progress('Saved java file paths')
 
                 try:
                     oreo_controller.calculate_metric(f'{WORKSPACE_PATH}processing')
@@ -129,14 +129,13 @@ def main(connection, s3, from_project, from_version):
                 log_progress('Generated metrics')
 
                 save_version(connection, s3, project["name"], project_version, guava_version, oreo_controller.snippet_path)
+                log_progress('Saved metrics')
 
                 oreo_controller.clean_up_metric()
                 shutil.rmtree(f'{WORKSPACE_PATH}processing')
-                print(VERSION_SEPERATOR)
 
             if from_version is not None:
                 raise ValueError(f'There is no version {from_version} in the chosen project')
-            print(PROJECT_SEPERATOR)
             
             # Remove processed repo
             shutil.rmtree(f'{WORKSPACE_PATH}{project_folder_name}')
