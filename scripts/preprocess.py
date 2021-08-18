@@ -4,12 +4,9 @@ import csv
 import datetime
 import fetchprojects
 from gitcontroller import GitController
-import glob
-import hashlib
 import json
 import os
 from pathlib import Path
-import pexpect
 import pymysql
 import shutil
 import subprocess
@@ -118,10 +115,8 @@ def main(connection, s3, from_project, from_version):
                     continue
 
                 print('Processing')
-                file_dict = process(
-                    f'{SCRIPT_PATH}{WORKSPACE_NAME}/{project_folder_name}',
-                    f'{SCRIPT_PATH}{WORKSPACE_NAME}/processing/{serialize_project_version_name(project["name"], project_version)}'
-                )
+                serialized_folder_name = serialize_project_version_name(project['name'], project_version)
+                file_dict = git_controller.gather_java(f'{WORKSPACE_PATH}processing/{serialized_folder_name}')
                 print(f'Found {len(file_dict)} files')
                 save_file_hash(connection, project['name'], project_version, file_dict)
                 log_progress('Extracted java files')
@@ -174,23 +169,6 @@ def serialize_project_version_name(project_name, project_version):
 # The initial name is a path, which contains '/' 
 def serialize_name(name):
     return name.replace('-',DASH).replace('/', SLASH)
-
-
-# Folder needs to be an absolute path
-def process(src_folder, des_folder):
-    Path(des_folder).mkdir(parents=True)
-
-    file_dict = {}
-
-    files = glob.glob(src_folder + '/**/*.java', recursive=True)
-    for raw_path in files:
-        relative_file_path = raw_path[len(src_folder) + 1:]
-        new_file_name = hashlib.sha224(relative_file_path.encode()).hexdigest() + '.java'
-        shutil.copy(raw_path, des_folder + '/' + new_file_name)
-
-        file_dict[relative_file_path] = new_file_name
-
-    return file_dict
 
 
 def find_guava_version(project_name, project_version):

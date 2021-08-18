@@ -1,5 +1,8 @@
+import glob
+import hashlib
 from pathlib import Path
 import pexpect
+import shutil
 
 class GitController:
     def __init__(self, mount_dir, repo):
@@ -61,3 +64,18 @@ class GitController:
                 return False
 
         return True
+
+    def gather_java(self, des_folder):
+        Path(des_folder).mkdir(parents=True)
+
+        file_dict = {}
+
+        files = glob.glob(self.mount_dir + '/**/*.java', recursive=True)
+        for raw_path in files:
+            relative_file_path = raw_path[len(self.mount_dir) + 1:]
+            new_file_name = hashlib.sha224(relative_file_path.encode()).hexdigest() + '.java'
+            shutil.copy(raw_path, des_folder + '/' + new_file_name)
+
+            file_dict[relative_file_path] = new_file_name
+
+        return file_dict
