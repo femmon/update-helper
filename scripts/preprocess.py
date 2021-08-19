@@ -58,8 +58,8 @@ def log_error(message):
 def main(connection, s3, from_project, from_version):
     start_information = f' from {from_project} at {from_version}' if from_project is not None else ''
     log_progress(f'\n\nRunning at {str(datetime.datetime.now())}{start_information}')
-    oreo_path = os.path.normpath(os.path.join(SCRIPT_PATH, '../oreo-artifact')
-    oreo_controller = OreoController() + '/')
+    oreo_path = os.path.normpath(os.path.join(SCRIPT_PATH, '../oreo-artifact')) + '/'
+    oreo_controller = OreoController(oreo_path)
 
     log_progress('Cleaning up')
     clean_up(oreo_controller)
@@ -75,8 +75,9 @@ def main(connection, s3, from_project, from_version):
                     continue
                 else:
                     from_project = None
-                    # Make sure version is reset as well if move to a new project without getting to 'from_version'
-                    from_version = None
+            else:
+                # Make sure version is reset as well if move to a new project without getting to 'from_version' check
+                from_version = None
 
             project_folder_name = project['source'].rsplit('/', 1)[-1]
             project_folder_path = f'{WORKSPACE_PATH}{project_folder_name}'
