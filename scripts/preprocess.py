@@ -65,19 +65,26 @@ def main(connection, s3, from_project, from_version):
     clean_up(oreo_controller)
 
     with open(SCRIPT_PATH + 'projects.txt') as f:
+        started_skipping_project = False
         for line in f:
-            PROJECT_SEPERATOR = '===============================================\n==============================================='
-            print(PROJECT_SEPERATOR)
             project = json.loads(line)
             if from_project is not None:
                 if project['name'] != from_project:
-                    log_progress('Skipped project ' + project['name'])
+                    if started_skipping_project:
+                        skipped_project += ', ' + project['name']
+                    else:
+                        skipped_project = 'Skipped project ' + project['name']
+                        started_skipping_project = True
                     continue
                 else:
                     from_project = None
+                    log_progress(skipped_project)
             else:
                 # Make sure version is reset as well if move to a new project without getting to 'from_version' check
                 from_version = None
+
+            PROJECT_SEPERATOR = '===============================================\n==============================================='
+            print(PROJECT_SEPERATOR)
 
             project_folder_name = project['source'].rsplit('/', 1)[-1]
             project_folder_path = f'{WORKSPACE_PATH}{project_folder_name}'
@@ -93,15 +100,22 @@ def main(connection, s3, from_project, from_version):
             
             create_project_database(connection, project['name'], project['source'])
 
+            started_skipping_version = False
             for project_version in project['versions']:
-                VERSION_SEPERATOR = '-----------------------------'
-                print(VERSION_SEPERATOR)
                 if from_version is not None:
                     if project_version != from_version:
-                        log_progress('Skipped version ' + project_version)
+                        if started_skipping_version:
+                            skipped_version += ', ' + project_version
+                        else:
+                            skipped_version = 'Skipped version ' + project_version
+                            started_skipping_version = True
                         continue
                     else:
                         from_version = None
+                        log_progress(skipped_version)
+
+                VERSION_SEPERATOR = '-----------------------------'
+                print(VERSION_SEPERATOR)
 
                 guava_version = find_guava_version(project['name'], project_version)
                 if guava_version is None:
