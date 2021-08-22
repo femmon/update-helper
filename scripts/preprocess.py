@@ -110,7 +110,8 @@ def main(connection, s3, from_project, from_version):
                         continue
                     else:
                         from_version = None
-                        log_progress(skipped_version)
+                        if started_skipping_version:
+                            log_progress(skipped_version)
 
                 VERSION_SEPERATOR = '-----------------------------'
                 print(VERSION_SEPERATOR)
@@ -139,11 +140,14 @@ def main(connection, s3, from_project, from_version):
                     return
                 log_progress('Generated metrics')
 
-                id = save_version(connection, s3, project['source'], project_version, guava_version, oreo_controller.snippet_path)
+                snippet_id = save_version(connection, s3, project['source'], project_version, guava_version, oreo_controller.snippet_path)
                 log_progress('Saved metrics')
 
-                save_file_hash(connection, id, file_dict)
+                file_ids = save_file_hash(connection, file_dict)
                 log_progress('Saved java file paths')
+
+                save_file_usage(connection, snippet_id, file_ids)
+                log_progress('Saved snippet-files association')
 
                 oreo_controller.clean_up_metric()
                 shutil.rmtree(f'{WORKSPACE_PATH}processing')
@@ -192,22 +196,24 @@ def find_guava_version(project_name, project_version):
 
 
 # Database
-def save_file_hash(connection, id, file_dict):
-    with open(TEMP_PATH, 'w') as data:
-        data_writer = csv.writer(data)
-        for real_path, hash_path in file_dict.items():
-            data_writer.writerow([id, real_path, hash_path])
-
+def save_file_hash(connection, file_dict):
+    ids = []
     with connection.cursor() as cursor:
-        # Remove existing data because LOAD DATA LOCAL will ignore duplicate keys
-        delete_existing_query = 'DELETE FROM `file` WHERE snippet_id=%s'
-        cursor.execute(delete_existing_query, (id))
+        for real_path, hash_path in file_dict.items():
+            exist_query = 'SELECT file_id FROM `file` WHERE real_path = %s'
+            cursor.execute(exist_query, (real_path))
+            row = cursor.fetchone()
 
-        load_new_query = 'LOAD DATA LOCAL INFILE %s INTO TABLE `file` FIELDS TERMINATED BY "," LINES TERMINATED BY "\n"'
-        cursor.execute(load_new_query, (TEMP_PATH))
+            if row:
+                ids.append(row[0])
+                continue
+
+            create_query = 'INSERT INTO `file` VALUES (NULL, %s, %s)'
+            cursor.execute(create_query, (real_path, hash_path))
+            ids.append(cursor.lastrowid)
         
     connection.commit()
-    os.remove(TEMP_PATH)
+    return ids
 
 
 def save_version(connection, s3, source, project_version, guava_version, snippet_path):
@@ -223,6 +229,20 @@ def save_version(connection, s3, source, project_version, guava_version, snippet
         s3.Bucket('update-helper').put_object(Key=new_file_name, Body=f)
 
     return id
+
+
+def save_file_usage(connection, snippet_id, file_ids):
+    with open(TEMP_PATH, 'w') as data:
+        data_writer = csv.writer(data)
+        for file_id in file_ids:
+            data_writer.writerow([snippet_id, file_id])
+
+    with connection.cursor() as cursor:
+        load_new_query = 'LOAD DATA LOCAL INFILE %s INTO TABLE `file_usage` FIELDS TERMINATED BY "," LINES TERMINATED BY "\n"'
+        cursor.execute(load_new_query, (TEMP_PATH))
+        
+    connection.commit()
+    os.remove(TEMP_PATH)
 
 
 if __name__ == '__main__':
