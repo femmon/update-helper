@@ -63,6 +63,9 @@ def main(connection, s3, from_project, from_version):
 
     log_progress('Cleaning up')
     clean_up(oreo_controller)
+    log_progress('Fetching latest Guava versions')
+    guava_info = fetchprojects.query_libraries_io('/api/maven/com.google.guava:guava/')
+    guava_versions = [version['number'] for version in guava_info['versions']]
 
     with open(SCRIPT_PATH + 'projects.txt') as f:
         started_skipping_project = False
@@ -116,7 +119,7 @@ def main(connection, s3, from_project, from_version):
                 VERSION_SEPERATOR = '-----------------------------'
                 print(VERSION_SEPERATOR)
 
-                guava_version = find_guava_version(project['name'], project_version)
+                guava_version = find_guava_version(guava_versions, project['name'], project_version)
                 if guava_version is None:
                     log_progress(f'{project["name"]} at version {project_version} doesn\'t use Guava')
                     continue
@@ -187,12 +190,13 @@ def serialize_name(name):
     return name.replace('-',DASH).replace('/', SLASH)
 
 
-def find_guava_version(project_name, project_version):
+def find_guava_version(guava_versions, project_name, project_version):
     # TODO: catch this then log_error?
     version_info = fetchprojects.query_libraries_io('/api/' + project_name + '/' + project_version + '/dependencies')
     for dependency in version_info['dependencies']:
-        if dependency['name'] == 'com.google.guava:guava':
-            return dependency['requirements']
+        version = dependency['requirements']
+        if dependency['name'] == 'com.google.guava:guava' and version in guava_versions:
+            return version
 
 
 # Database
