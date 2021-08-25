@@ -6,12 +6,14 @@ import time
 
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
+INTERMEDIARY_PATH = SCRIPT_PATH + 'intermediary.txt'
+INTERMEDIARY_TEMP_PATH = SCRIPT_PATH + 'intermediary.tmp'
 KEY = os.environ['LIBRARIESIO_KEY']
 ROOT = 'https://libraries.io'
 
 
 def main():
-    dependencies = []
+    raw_dependencies_count = 0
 
     page = 1
     raw_dependencies = query_libraries_io('/api/maven/com.google.guava:guava/dependents?page=' + str(page))
@@ -23,15 +25,49 @@ def main():
                 'source': dependency['repository_url'],
                 'versions': list(map(lambda version_info: version_info['number'], dependency['versions']))
             }
-            dependencies.append(output)
+            raw_dependencies_count += 1
 
-            with open(SCRIPT_PATH + 'projects.txt', 'a') as f:
+            with open(INTERMEDIARY_PATH, 'a') as f:
                 f.write(json.dumps(output) + '\n')
 
         page += 1
         raw_dependencies = query_libraries_io('/api/maven/com.google.guava:guava/dependents?page=' + str(page))
 
-    print(len(dependencies))
+    print(f'Fetched {raw_dependencies_count} packages')
+
+    while True:
+        source = None
+        versions = {}
+
+        with open(INTERMEDIARY_PATH) as intermediary:
+            with open(INTERMEDIARY_TEMP_PATH, 'a') as intermediary_temp:
+                for line in intermediary:
+                    project = json.loads(line)
+                    if project['source'] == None:
+                        continue
+
+                    if source == None or source == '':
+                        source = project['source']
+
+                    if project['source'] == source:
+                        for new_version in project['versions']:
+                            if new_version not in versions:
+                                versions[new_version] = project['name']
+                    else:
+                        intermediary_temp.write(line)
+
+        if not source:
+            break
+
+        with open(SCRIPT_PATH + 'projects.txt', 'a') as result:
+            version_list = list(versions.items())
+            result.write(json.dumps({'source': source, 'versions': version_list}) + '\n')
+            print('Saved ' + source)
+
+        os.replace(INTERMEDIARY_TEMP_PATH, INTERMEDIARY_PATH)
+
+    os.remove(INTERMEDIARY_PATH)
+    os.remove(INTERMEDIARY_TEMP_PATH)
 
 
 # Need to handle when querying too fast

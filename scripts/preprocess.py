@@ -72,11 +72,11 @@ def main(connection, s3, from_project, from_version):
         for line in f:
             project = json.loads(line)
             if from_project is not None:
-                if project['name'] != from_project:
+                if project['source'] != from_project:
                     if started_skipping_project:
-                        skipped_project += ', ' + project['name']
+                        skipped_project += ', ' + project['source']
                     else:
-                        skipped_project = 'Skipped project ' + project['name']
+                        skipped_project = 'Skipped project ' + project['source']
                         started_skipping_project = True
                     continue
                 else:
@@ -93,16 +93,16 @@ def main(connection, s3, from_project, from_version):
             project_folder_path = f'{WORKSPACE_PATH}{project_folder_name}'
             source = project['source'] + '.git'
 
-            print(f'Cloning "{project["name"]}" from {source}')
+            print(f'Cloning {source}')
             try:
                 git_controller = GitController(project_folder_path, source)
-                log_progress(f'Cloned {project["name"]}')
+                log_progress(f'Cloned {source}')
             except RuntimeError as e:
                 log_error(str(e))
                 continue
 
             started_skipping_version = False
-            for project_version in project['versions']:
+            for project_version, project_name in project['versions']:
                 if from_version is not None:
                     if project_version != from_version:
                         if started_skipping_version:
@@ -119,20 +119,20 @@ def main(connection, s3, from_project, from_version):
                 VERSION_SEPERATOR = '-----------------------------'
                 print(VERSION_SEPERATOR)
 
-                guava_version = find_guava_version(guava_versions, project['name'], project_version)
+                guava_version = find_guava_version(guava_versions, project_name, project_version)
                 if guava_version is None:
-                    log_progress(f'{project["name"]} at version {project_version} doesn\'t use Guava')
+                    log_progress(f'{source} ({project_name}) at version {project_version} doesn\'t use Guava')
                     continue
-                log_progress(f'{project["name"]} at version {project_version} uses Guava {guava_version}')
+                log_progress(f'{source} ({project_name}) at version {project_version} uses Guava {guava_version}')
 
                 if git_controller.checkout(project_version):
-                    log_progress(f'Checked out {project["name"]} at version {project_version}')
+                    log_progress(f'Checked out {source} at version {project_version}')
                 else:
-                    log_progress(f'Couldn\'t check out {project["name"]} at version {project_version}')
+                    log_progress(f'Couldn\'t check out {source} at version {project_version}')
                     continue
 
                 print('Processing')
-                serialized_folder_name = serialize_project_version_name(project['name'], project_version)
+                serialized_folder_name = serialize_folder_name(serialize_source_version_name(project['source'], project_version))
                 file_dict = git_controller.gather_java(f'{WORKSPACE_PATH}processing/{serialized_folder_name}')
                 print(f'Found {len(file_dict)} files')
 
@@ -179,14 +179,12 @@ def clean_up(oreo_controller):
     oreo_controller.clean_up_metric()
 
 
-def serialize_project_version_name(project_name, project_version):
-    # There is no slash inside versions of the dataset
-    # It should be fine to extract version back
-    return f'{serialize_name(project_name)}{SLASH}{project_version}'
+def serialize_source_version_name(source, project_version):
+    return f'{source}/{project_version}'
 
 
-# The initial name is a path, which contains '/' 
-def serialize_name(name):
+# TO remove '/' from the name
+def serialize_folder_name(name):
     return name.replace('-',DASH).replace('/', SLASH)
 
 
@@ -224,7 +222,7 @@ def save_version(connection, s3, source, project_version, guava_version, snippet
     with connection.cursor() as cursor:
         # Create a new record
         sql = "INSERT INTO `snippet` VALUES (NULL, %s, %s, %s, %s)"
-        new_file_name = f'{source}/{project_version}'
+        new_file_name = serialize_source_version_name(source, project_version)
         cursor.execute(sql, (source, project_version, guava_version, new_file_name))
         id = cursor.lastrowid
     connection.commit()
@@ -250,8 +248,8 @@ def save_file_usage(connection, snippet_id, file_ids):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Use the file "projects.txt" produced by "fetchprojects.py" to scrape GitHub and save the processed code to databases.\nThe argument values are taken from "projects.py"')
-    parser.add_argument('--from-project', '-p', help='start processing from this project')
+    parser = argparse.ArgumentParser(description='Use the file "projects.txt" produced by "fetchprojects.py" to scrape GitHub and save the processed code to databases.\nThe argument values are taken from "projects.txt"')
+    parser.add_argument('--from-project', '-p', help='start processing from this repo')
     parser.add_argument('--from-version', '-v', help='start processing from this version')
     args = parser.parse_args()
     from_project = args.from_project
