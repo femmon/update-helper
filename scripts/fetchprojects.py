@@ -1,3 +1,4 @@
+import functools
 import urllib.request
 import json
 import math
@@ -60,7 +61,8 @@ def main():
             break
 
         with open(SCRIPT_PATH + 'projects.txt', 'a') as result:
-            version_list = list(versions.items())
+            # Sort in the hope that preprocess.py will take less time checking out
+            version_list = sorted(list(versions.items()), key=functools.cmp_to_key(cmp_version))
             result.write(json.dumps({'source': source, 'versions': version_list}) + '\n')
             print('Saved ' + source)
 
@@ -110,6 +112,42 @@ def get_json(url):
     cont = json.loads(r.decode('utf-8'))
     return cont
 
+
+def cmp_version(version_a, version_b):
+    version_a_list = process_version(version_a[0])
+    version_b_list = process_version(version_b[0])
+    for i in range(min(len(version_a_list), len(version_b_list))):
+        try:
+            result = compare(version_a_list[i], version_b_list[i])
+            if result != 0:
+                return result
+        except TypeError:
+            result = compare(str(version_a_list[i]), str(version_b_list[i]))
+            if result != 0:
+                return result
+    
+    return compare(len(version_a_list), len(version_b_list))
+
+
+def process_version(version):
+    components = version.split('.')
+    result = []
+    for c in components:
+        try:
+            i = int(c)
+        except ValueError:
+            i = c
+        result.append(i)
+    
+    return result
+
+
+def compare(a, b):
+    if a > b:
+        return 1
+    elif a < b:
+        return -1
+    return 0
 
 
 if __name__ == "__main__":
