@@ -11,6 +11,7 @@ from pathlib import Path
 import pymysql
 import shutil
 import sys
+import uuid
 import logging
 
 
@@ -81,7 +82,8 @@ def main(connection, s3, from_project, from_version):
                     continue
                 else:
                     from_project = None
-                    log_progress(skipped_project)
+                    if started_skipping_project:
+                        log_progress(skipped_project)
             else:
                 # Make sure version is reset as well if move to a new project without getting to 'from_version' check
                 from_version = None
@@ -134,7 +136,7 @@ def main(connection, s3, from_project, from_version):
                 print('Processing')
                 serialized_folder_name = serialize_folder_name(serialize_source_version_name(project['source'], project_version))
                 file_dict = git_controller.gather_java(f'{WORKSPACE_PATH}processing/{serialized_folder_name}')
-                print(f'Found {len(file_dict)} files')
+                log_progress(f'Found {len(file_dict)} files')
 
                 try:
                     oreo_controller.calculate_metric(f'{WORKSPACE_PATH}processing')
@@ -199,23 +201,43 @@ def find_guava_version(guava_versions, project_name, project_version):
 
 # Database
 def save_file_hash(connection, file_dict):
-    ids = []
-    with connection.cursor() as cursor:
+    with open(TEMP_PATH, 'w') as data:
+        data_writer = csv.writer(data)
         for real_path, hash_path in file_dict.items():
-            exist_query = 'SELECT file_id FROM `file` WHERE real_path = %s'
-            cursor.execute(exist_query, (real_path))
-            row = cursor.fetchone()
+            data_writer.writerow([real_path, hash_path])
 
-            if row:
-                ids.append(row[0])
-                continue
+    with connection.cursor() as cursor:
+        temp_table_name = uuid.uuid4().hex
+        create_table_query = '''
+            CREATE TABLE `update_helper`.`%s` (
+                `real_path` VARCHAR(511) NOT NULL,
+                `hash_path` VARCHAR(255) NOT NULL,
+                PRIMARY KEY (`real_path`)
+            );
+        '''
+        cursor.execute(create_table_query, (temp_table_name))
 
-            create_query = 'INSERT INTO `file` VALUES (NULL, %s, %s)'
-            cursor.execute(create_query, (real_path, hash_path))
-            ids.append(cursor.lastrowid)
-        
+        load_new_query = 'LOAD DATA LOCAL INFILE %s INTO TABLE `update_helper`.`%s` FIELDS TERMINATED BY "," LINES TERMINATED BY "\n"'
+        cursor.execute(load_new_query, (TEMP_PATH, temp_table_name))
+
+        create_file_query = '''
+            INSERT INTO file (real_path, hash_path) SELECT T.real_path, T.hash_path FROM `update_helper`.`%s` AS T 
+            LEFT JOIN file AS F ON T.real_path = F.real_path
+            WHERE F.real_path IS NULL
+        '''
+        cursor.execute(create_file_query, (temp_table_name))
+
+        get_ids_query = 'SELECT F.file_id FROM `update_helper`.`%s` AS T LEFT JOIN `file` AS F ON T.real_path = F.real_path'
+        cursor.execute(get_ids_query, (temp_table_name))
+        id_records = cursor.fetchall()
+
+        delete_query = 'DROP TABLE `update_helper`.`%s`'
+        cursor.execute(delete_query, (temp_table_name))
+
     connection.commit()
-    return ids
+    os.remove(TEMP_PATH)
+
+    return map(lambda row: row[0], id_records)
 
 
 def save_version(connection, s3, source, project_version, guava_version, snippet_path):
