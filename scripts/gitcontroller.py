@@ -65,7 +65,9 @@ class GitController:
 
         return True
 
-    def gather_java(self, des_folder):
+    def gather_java(self, des_folders):
+        des_folders_iter = iter(des_folders)
+        des_folder = next(des_folders_iter)
         Path(des_folder).mkdir(parents=True)
 
         file_dict = {}
@@ -74,8 +76,17 @@ class GitController:
         for raw_path in files:
             relative_file_path = raw_path[len(self.mount_dir) + 1:]
             new_file_name = hashlib.sha224(relative_file_path.encode()).hexdigest() + '.java'
-            shutil.copy(raw_path, des_folder + '/' + new_file_name)
-
+            new_file_path = des_folder + '/' + new_file_name
+            try:
+                shutil.copy(raw_path, new_file_path)
+            except OSError as e:
+                if str(e) == f"[Errno 27] File too large: '{new_file_path}'":
+                    des_folder = next(des_folders_iter)
+                    Path(des_folder).mkdir(parents=True)
+                    new_file_path = des_folder + '/' + new_file_name
+                    shutil.copy(raw_path, new_file_path)
+                else:
+                    raise(e)
             file_dict[relative_file_path] = new_file_name
 
         return file_dict

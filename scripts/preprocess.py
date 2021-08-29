@@ -134,8 +134,8 @@ def main(connection, s3, from_project, from_version):
                     continue
 
                 print('Processing')
-                serialized_folder_name = serialize_folder_name(serialize_source_version_name(project['source'], project_version))
-                file_dict = git_controller.gather_java(f'{WORKSPACE_PATH}processing/{serialized_folder_name}')
+                folders_generator = processed_java_folders_generator(f'{WORKSPACE_PATH}processing/', project['source'], project_version)
+                file_dict = git_controller.gather_java(folders_generator)
                 log_progress(f'Found {len(file_dict)} files')
 
                 try:
@@ -179,6 +179,18 @@ def clean_up(oreo_controller):
         shutil.rmtree(f'{WORKSPACE_PATH}{name}')
 
     oreo_controller.clean_up_metric()
+
+
+def processed_java_folders_generator(processed_java_folders_parent, source, project_version):
+    serialized_source_version_name = serialize_source_version_name(source, project_version)
+    yield processed_java_folders_parent + serialize_folder_name(serialized_source_version_name)
+
+    i = 1
+    while True:
+        log_progress(f'Using {i + 1} folders to store the .java file')
+        serialized_folder_name = serialize_folder_name(f'{serialized_source_version_name}//{i}')
+        yield processed_java_folders_parent + serialized_folder_name
+        i += 1
 
 
 def serialize_source_version_name(source, project_version):
