@@ -145,6 +145,8 @@ def main(connection, s3, from_project, from_version):
                     return
                 log_progress('Generated metrics')
 
+                # Prevent connection from dropping when query is too far apart
+                connection.ping(reconnect=True)
                 snippet_id = save_version(connection, s3, project['source'], project_version, guava_version, oreo_controller.snippet_path)
                 log_progress('Saved metrics')
 
