@@ -1,4 +1,4 @@
 .env
 oreo-artifact/
-scripts/projects.txt
-scripts/workspace
+data-preparation/scripts/projects.txt
+data-preparation/scripts/workspace

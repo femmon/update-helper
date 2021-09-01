@@ -1,9 +1,11 @@
+# **Data Preparation**
+
 # Requirements
 - Linus OS (this project is developed with Ubuntu 18.04, oreo is tested with CentOS)
 - Python 3.6 (oreo requirement)
 - Java 8 (oreo requirement). Please make sure `java` and `ant` using the correct version by having the appropriate value for `PATH` and `JAVA_HOME` environment variables
 # Installing
-All of the commands here are run from the project root
+All of the commands here are run from the project '/data-preparation'
 ```
 python3 -m pip install --user pipenv==2021.5.29
 python3 -m pipenv install # Install dependencies
