@@ -31,3 +31,12 @@ CREATE TABLE `update_helper`.`file_usage` (
     ON DELETE CASCADE
     ON UPDATE CASCADE
 );
+
+CREATE TABLE `update_helper`.`job` (
+  `job_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `source` VARCHAR(511) NOT NULL,
+  `commit` VARCHAR(55) NOT NULL,
+  `source_guava_version` VARCHAR(55) NOT NULL,
+  `target_guava_version` VARCHAR(55) NOT NULL,
+  PRIMARY KEY (`job_id`)
+);
