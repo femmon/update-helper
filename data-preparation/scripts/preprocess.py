@@ -158,7 +158,6 @@ def main(connection, s3, from_project, from_version):
                 save_file_usage(connection, snippet_id, file_ids)
                 log_progress('Saved snippet-files association')
 
-                return
                 oreo_controller.clean_up_metric()
                 shutil.rmtree(f'{WORKSPACE_PATH}processing')
 
