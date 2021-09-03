@@ -26,6 +26,7 @@ Werkzeug = "==0.14.1"
 pexpect = "==4.8.0"
 pymysql = "==1.0.2"
 boto3 = "==1.18.11"
+update-helper-common = {editable = true, path = "./../common"}
 
 [dev-packages]
 

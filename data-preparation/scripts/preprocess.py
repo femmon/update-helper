@@ -3,9 +3,9 @@ import boto3
 import csv
 import datetime
 import fetchprojects
-from gitcontroller import GitController
+from updatehelpercommon import GitController
 import json
-from oreocontroller import OreoController
+from updatehelpercommon import OreoController
 import os
 from pathlib import Path
 import pymysql
@@ -92,6 +92,8 @@ def main(connection, s3, from_project, from_version):
             print(PROJECT_SEPERATOR)
 
             project_folder_name = project['source'].rsplit('/', 1)[-1]
+            if project_folder_name == '':
+                project_folder_name = serialize_folder_name(project['source'])
             project_folder_path = f'{WORKSPACE_PATH}{project_folder_name}'
             source = project['source'] + '.git'
 
@@ -156,6 +158,7 @@ def main(connection, s3, from_project, from_version):
                 save_file_usage(connection, snippet_id, file_ids)
                 log_progress('Saved snippet-files association')
 
+                return
                 oreo_controller.clean_up_metric()
                 shutil.rmtree(f'{WORKSPACE_PATH}processing')
 
