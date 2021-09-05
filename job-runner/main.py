@@ -24,6 +24,11 @@ if __name__ == '__main__':
     oreo_controller = OreoController(OREO_PATH, init_java_parser=True)
 
     with pymysql.connect(host=HOST, port=PORT, user=USER, password=PASSWORD, database=DATABASE, local_infile=True) as connection:
+        with connection.cursor() as cursor:
+            get_status_query = 'SELECT * FROM `update_helper`.`status`'
+            cursor.execute(get_status_query)
+            statuses = dict((y, x) for x, y in cursor.fetchall())
+
         sqs = boto3.resource('sqs', region_name='ap-southeast-2')
         queue = sqs.get_queue_by_name(QueueName='update-helper_job')
 
@@ -31,6 +36,11 @@ if __name__ == '__main__':
             for message in queue.receive_messages():
                 body = json.loads(message.body)
                 print(f'Got message {body}')
-                initjob(WORKSPACE_PATH, oreo_controller, connection, body)
+
+                if body['status'] == statuses['INITIALIZING']:
+                    initjob(WORKSPACE_PATH, oreo_controller, connection, body)
+                elif body['status'] == statuses['QUEUEING']:
+                    print(body)
+
                 print('Processed message')
                 message.delete()

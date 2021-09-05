@@ -56,3 +56,26 @@ CREATE TABLE `update_helper`.`status` (
 );
 
 INSERT INTO `update_helper`.`status` (`label`) VALUES ('INITIALIZING'), ('RUNNING'), ('FINISHED'), ('QUEUEING');
+
+CREATE TABLE `update_helper`.`job_component` (
+  `job_component_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `job_id` INT UNSIGNED NOT NULL,
+  `snippet_id` INT UNSIGNED NOT NULL,
+  `job_component_status` INT UNSIGNED NOT NULL,
+  CONSTRAINT `job_component_job_id`
+    FOREIGN KEY (`job_id`)
+    REFERENCES `update_helper`.`job` (`job_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `job_component_snippet_id`
+    FOREIGN KEY (`snippet_id`)
+    REFERENCES `update_helper`.`snippet` (`snippet_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `job_component_status`
+    FOREIGN KEY (`job_component_status`)
+    REFERENCES `update_helper`.`status` (`status_id`)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE,
+  PRIMARY KEY (`job_component_id`)
+);
