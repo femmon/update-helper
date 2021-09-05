@@ -5,12 +5,13 @@ import pexpect
 import shutil
 
 class GitController:
-    def __init__(self, mount_dir, repo):
+    def __init__(self, mount_dir, repo, cloned=False):
         self.mount_dir = mount_dir
         self.repo = repo
 
-        Path(self.mount_dir).mkdir(parents=True)
-        self.clone()
+        if not cloned:
+            Path(self.mount_dir).mkdir(parents=True)
+            self.clone()
 
     def clone(self):
         clone_output = pexpect.run(
@@ -37,10 +38,10 @@ class GitController:
         pexpect_output = [line for line in pexpect_output.split('\r\n') if line != '']
         return pexpect_output[-1]
 
-    def checkout(self, version):
+    def checkout(self, version, commit=False):
         print('Checking out ' + version)
         checkout_output = pexpect.run(
-            f'git checkout tags/{version}',
+            f'git checkout {"" if commit else "tags/"}{version}',
             cwd=self.mount_dir,
             timeout=None
         ).decode()
@@ -49,6 +50,9 @@ class GitController:
         failed_clone_message = f'error: pathspec \'tags/{version}\' did not match any file(s) known to git.'
         is_success = checkout_output_last_line.startswith('HEAD is now at ')
         if checkout_output_last_line == failed_clone_message or not is_success:
+            if commit:
+                return False
+
             version = 'v' + version
             print('Checkout again using tag ' + version)
             checkout_output = pexpect.run(

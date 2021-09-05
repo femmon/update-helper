@@ -1,15 +1,26 @@
 import os
+import pexpect
 import subprocess
 import time
 
 
 class OreoController:
     # mount_dir needs to end with '/'
-    def __init__(self, mount_dir):
+    def __init__(self, mount_dir, init_java_parser=False):
         self.mount_dir = mount_dir
         self.oreo_script = mount_dir + 'oreo/python_scripts/'
         self.metric_output_path = self.oreo_script + '1_metric_output/'
         self.snippet_path = self.metric_output_path + 'mlcc_input.file'
+
+        if init_java_parser:
+            self.init_java_parser()
+
+    def init_java_parser(self):
+        pexpect.run(
+            'ant metric',
+            cwd=self.mount_dir + 'oreo/java-parser',
+            timeout=None
+        )
 
     def calculate_metric(self, source):
         retry = 0
@@ -21,6 +32,9 @@ class OreoController:
         while True:
             time.sleep(10)
             with open(self.oreo_script + 'metric.out') as f:
+                # For situation where the file is empty
+                line = ''
+
                 for line in f:
                     pass
                 if line == 'done!\n':
@@ -43,5 +57,9 @@ class OreoController:
                         )
 
     def clean_up_metric(self):
-        for name in os.listdir(self.metric_output_path):
-            os.remove(f'{self.metric_output_path}{name}')
+        # There might be no output folder
+        try:
+            for name in os.listdir(self.metric_output_path):
+                os.remove(f'{self.metric_output_path}{name}')
+        except FileNotFoundError:
+            pass

@@ -38,5 +38,21 @@ CREATE TABLE `update_helper`.`job` (
   `commit` VARCHAR(55) NOT NULL,
   `source_guava_version` VARCHAR(55) NOT NULL,
   `target_guava_version` VARCHAR(55) NOT NULL,
+  `job_snippet_file` VARCHAR(255),
+  `job_status` INT UNSIGNED NOT NULL,
+  CONSTRAINT `status`
+    FOREIGN KEY (`job_status`)
+    REFERENCES `update_helper`.`status` (`status_id`)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE,
   PRIMARY KEY (`job_id`)
 );
+
+CREATE TABLE `update_helper`.`status` (
+  `status_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `label` VARCHAR(55) NOT NULL,
+  UNIQUE KEY (`label`),
+  PRIMARY KEY (`status_id`)
+);
+
+INSERT INTO `update_helper`.`status` (`label`) VALUES ('INITIALIZING'), ('RUNNING'), ('FINISHED'), ('QUEUEING');
