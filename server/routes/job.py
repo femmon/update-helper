@@ -2,6 +2,8 @@ import boto3
 from flask import abort, Blueprint, jsonify, request, url_for
 import json
 import database
+from flask_socketio import emit, join_room
+from __main__ import socketio
 
 
 job = Blueprint('job', __name__)
@@ -54,3 +56,14 @@ def post_job():
 def get_blueprint_mounted_route(request_rule, current_route):
     current_route_position = request_rule.rfind(current_route)
     return request_rule[:current_route_position]
+
+
+@job.route('/<id>', methods=['POST'])
+def post_progress(id):
+    emit('progress', request.json, namespace='/', room=id)
+    return '', 200
+
+
+@socketio.on('register')
+def register_room(data):
+    join_room(data['job_id'])
