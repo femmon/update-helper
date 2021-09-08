@@ -5,6 +5,7 @@ import pymysql
 from updatehelpercommon import GitController
 from updatehelpercommon import OreoController
 from initjob import initjob
+from runjobcomponent import run_job_component
 
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -31,7 +32,7 @@ if __name__ == '__main__':
 
         sqs = boto3.resource('sqs', region_name='ap-southeast-2')
         queue = sqs.get_queue_by_name(QueueName='update-helper_job')
-
+        print('Finish setting up. Awaiting for message')
         while True:
             for message in queue.receive_messages():
                 body = json.loads(message.body)
@@ -40,7 +41,7 @@ if __name__ == '__main__':
                 if body['status'] == statuses['INITIALIZING']:
                     initjob(WORKSPACE_PATH, oreo_controller, connection, body)
                 elif body['status'] == statuses['QUEUEING']:
-                    print(body)
+                    run_job_component(WORKSPACE_PATH, oreo_controller, connection, body)
 
                 print('Processed message')
                 message.delete()
