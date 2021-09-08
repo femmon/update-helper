@@ -1,8 +1,8 @@
 import setuptools
 
 setuptools.setup(
-    name='update-helper-common',
-    packages=['updatehelpercommon'],
+    name='update-helper-project-controller',
+    packages=['projectcontroller'],
     install_requires=[
         'absl-py==0.1.10',
         'bleach==1.5.0',

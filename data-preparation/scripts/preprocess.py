@@ -3,9 +3,9 @@ import boto3
 import csv
 import datetime
 import fetchprojects
-from updatehelpercommon import GitController
+from projectcontroller import GitController
 import json
-from updatehelpercommon import OreoController
+from projectcontroller import OreoController
 import os
 from pathlib import Path
 import pymysql

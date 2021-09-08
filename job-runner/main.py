@@ -2,8 +2,8 @@ import boto3
 import json
 import os
 import pymysql
-from updatehelpercommon import GitController
-from updatehelpercommon import OreoController
+from projectcontroller import GitController
+from projectcontroller import OreoController
 from initjob import initjob
 from runjobcomponent import run_job_component
 

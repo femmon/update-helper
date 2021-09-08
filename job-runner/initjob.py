@@ -3,7 +3,7 @@ import csv
 import json
 import os
 import shutil
-from updatehelpercommon import GitController
+from projectcontroller import GitController
 
 
 def initjob(workspace_path, oreo_controller, connection, body):
