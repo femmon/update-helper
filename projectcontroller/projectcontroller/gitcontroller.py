@@ -7,6 +7,9 @@ import shutil
 class GitController:
     def __init__(self, mount_dir, repo, cloned=False):
         self.mount_dir = mount_dir
+        # To make sure gather_java() extracts the right relative_file_path
+        if self.mount_dir[-1] != '/':
+            self.mount_dir = self.mount_dir + '/'
         self.repo = repo
 
         if not cloned:
@@ -78,7 +81,7 @@ class GitController:
 
         files = glob.glob(self.mount_dir + '/**/*.java', recursive=True)
         for raw_path in files:
-            relative_file_path = raw_path[len(self.mount_dir) + 1:]
+            relative_file_path = raw_path[len(self.mount_dir):]
             new_file_name = hashlib.sha224(relative_file_path.encode()).hexdigest() + '.java'
             new_file_path = des_folder + '/' + new_file_name
             try:

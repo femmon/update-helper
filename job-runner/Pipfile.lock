@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "df6d880724825b878949a6610bb2423fa09a014e8f779f169abc8194a8eb0de4"
+            "sha256": "001f2e702b21fe296cae2c7af67fd58ec9696ce5cefa98d3f070790b9199ea4e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -334,6 +334,10 @@
                 "sha256:663986f43e3283cd08f6feb8a2dede39fb2ca53d992b15b5c50858592a03f72f"
             ],
             "version": "==1.5.0"
+        },
+        "update-helper-database": {
+            "editable": true,
+            "path": "./../database"
         },
         "update-helper-project-controller": {
             "editable": true,

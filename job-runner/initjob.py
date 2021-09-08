@@ -2,12 +2,14 @@ import boto3
 import csv
 import json
 import os
-import shutil
 from projectcontroller import GitController
+import shutil
+from updatehelperdatabase import file
 
 
 def initjob(workspace_path, oreo_controller, connection, body):
-    clean_up(workspace_path, oreo_controller)
+    temp_path = workspace_path + 'temp.csv'
+    clean_up(workspace_path, temp_path, oreo_controller)
 
     extended_job_id = f'job/{body["job_id"]}'
     serialized_extended_id = extended_job_id.replace('/', '-s-')
@@ -18,9 +20,14 @@ def initjob(workspace_path, oreo_controller, connection, body):
         raise RuntimeError(f'Job {body["job_id"]} can\'t be checkout at {body["commit"]}')
 
     file_dict = git_controller.gather_java([job_repo_path])
+    print(f'Found {len(file_dict)} files')
     shutil.rmtree(f'{workspace_path}processing/input/')
 
     oreo_controller.calculate_metric(workspace_path + 'processing/')
+
+    file.save_file_hash(connection, file_dict, temp_path)
+    print('Saved file hashes')
+
     with open(oreo_controller.snippet_path, 'rb') as f:
         s3 = boto3.resource('s3')
         s3.Bucket('update-helper').put_object(Key=extended_job_id, Body=f)
@@ -45,7 +52,6 @@ def initjob(workspace_path, oreo_controller, connection, body):
     connection.commit()
 
     if status == statuses['RUNNING']:
-        temp_path = workspace_path + 'temp.csv'
         with open(temp_path, 'w') as data:
             data_writer = csv.writer(data)
             for snippet_id, snippet_file in similar_snippets:
@@ -85,11 +91,16 @@ def initjob(workspace_path, oreo_controller, connection, body):
         for message_batch in message_batches:
             queue.send_messages(Entries=message_batch)
 
-    clean_up(workspace_path, oreo_controller)
+    clean_up(workspace_path, temp_path, oreo_controller)
 
-def clean_up(workspace_path, oreo_controller):
+def clean_up(workspace_path, temp_path, oreo_controller):
     try:
         shutil.rmtree(workspace_path + 'processing/')
+    except FileNotFoundError:
+        pass
+
+    try:
+        os.remove(temp_path)
     except FileNotFoundError:
         pass
 
