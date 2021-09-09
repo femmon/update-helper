@@ -1,5 +1,6 @@
 import boto3
 import os
+from updatehelperdatabase import job
 
 
 def run_job_component(workspace_path, oreo_controller, connection, body):
@@ -14,7 +15,8 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
     
     try:
         oreo_controller.detect_clone(temp_path)
-    except:
+    except Exception:
+        job.update_job_component_status(connection, body['job_component_id'], 'ERROR')
         print('Can\'t detect clones')
         return
 
@@ -37,7 +39,9 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
                     clones[job_func] = set()
                 clones[job_func].add(','.join(function2[1:4]))
 
-    print(clones)
+    job.update_job_component_status(connection, body['job_component_id'], 'FINISHED')
+    job.check_and_update_finished_job(connection, body['job_id'])
+
     clean_up(files=[temp_path])
 
 def clean_up(files=[]):

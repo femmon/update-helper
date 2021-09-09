@@ -80,6 +80,7 @@ def initjob(workspace_path, oreo_controller, connection, body):
 
             message_body = {
                 'job_component_id': component_and_snippet_map[snippet_id],
+                'job_id': body['job_id'],
                 'job_snippet_file': extended_job_id,
                 'snippet_file': snippet_file,
                 'status': statuses['QUEUEING']
