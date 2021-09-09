@@ -42,3 +42,16 @@ def save_file_hash(connection, file_dict, temp_path):
     os.remove(temp_path)
 
     return map(lambda row: row[0], id_records)
+
+def save_file_usage(connection, job_id, file_ids, temp_path):
+    with open(temp_path, 'w') as data:
+        data_writer = csv.writer(data)
+        for file_id in file_ids:
+            data_writer.writerow([job_id, file_id])
+
+    with connection.cursor() as cursor:
+        load_new_query = 'LOAD DATA LOCAL INFILE %s INTO TABLE `job_file_usage` FIELDS TERMINATED BY "," LINES TERMINATED BY "\n"'
+        cursor.execute(load_new_query, (temp_path))
+        
+    connection.commit()
+    os.remove(temp_path)

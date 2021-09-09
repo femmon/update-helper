@@ -25,12 +25,15 @@ def initjob(workspace_path, oreo_controller, connection, body):
 
     oreo_controller.calculate_metric(workspace_path + 'processing/')
 
-    file.save_file_hash(connection, file_dict, temp_path)
+    file_ids = file.save_file_hash(connection, file_dict, temp_path)
     print('Saved file hashes')
 
     with open(oreo_controller.snippet_path, 'rb') as f:
         s3 = boto3.resource('s3')
         s3.Bucket('update-helper').put_object(Key=extended_job_id, Body=f)
+
+    file.save_file_usage(connection, body['job_id'], file_ids, temp_path)
+    print('Saved snippet-files association')
 
     with connection.cursor() as cursor:
         get_status_query = 'SELECT * FROM `update_helper`.`status`'

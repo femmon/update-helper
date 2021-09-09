@@ -48,6 +48,22 @@ CREATE TABLE `update_helper`.`job` (
   PRIMARY KEY (`job_id`)
 );
 
+CREATE TABLE `update_helper`.`job_file_usage` (
+  `job_id` INT UNSIGNED NOT NULL,
+  `file_id` BIGINT UNSIGNED NOT NULL,
+  PRIMARY KEY (`job_id`, `file_id`),
+  CONSTRAINT `job_id`
+    FOREIGN KEY (`job_id`)
+    REFERENCES `update_helper`.`job` (`job_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `job_file_usage_file_id`
+    FOREIGN KEY (`file_id`)
+    REFERENCES `update_helper`.`file` (`file_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+);
+
 CREATE TABLE `update_helper`.`status` (
   `status_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `label` VARCHAR(55) NOT NULL,
@@ -55,7 +71,7 @@ CREATE TABLE `update_helper`.`status` (
   PRIMARY KEY (`status_id`)
 );
 
-INSERT INTO `update_helper`.`status` (`label`) VALUES ('INITIALIZING'), ('RUNNING'), ('FINISHED'), ('QUEUEING');
+INSERT INTO `update_helper`.`status` (`label`) VALUES ('INITIALIZING'), ('RUNNING'), ('FINISHED'), ('QUEUEING'), ('ERROR');
 
 CREATE TABLE `update_helper`.`job_component` (
   `job_component_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -78,4 +94,30 @@ CREATE TABLE `update_helper`.`job_component` (
     ON DELETE RESTRICT
     ON UPDATE CASCADE,
   PRIMARY KEY (`job_component_id`)
+);
+
+CREATE TABLE `update_helper`.`job_result` (
+  `job_result_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `job_component_id` BIGINT UNSIGNED NOT NULL,
+  `job_file_id` BIGINT UNSIGNED NOT NULL,
+  `job_function` VARCHAR(31) NOT NULL,
+  `snippet_file_id` BIGINT UNSIGNED NOT NULL,
+  `snippet_function` VARCHAR(31) NOT NULL,
+  CONSTRAINT `job_result_job_component_id`
+    FOREIGN KEY (`job_component_id`)
+    REFERENCES `update_helper`.`job_component` (`job_component_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `job_result_job_file_id`
+    FOREIGN KEY (`job_file_id`)
+    REFERENCES `update_helper`.`file` (`file_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `job_result_snippet_file_id`
+    FOREIGN KEY (`snippet_file_id`)
+    REFERENCES `update_helper`.`file` (`file_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  UNIQUE KEY (`job_component_id`, `job_file_id`, `job_function`, `snippet_file_id`, `snippet_function`),
+  PRIMARY KEY (`job_result_id`)
 );
