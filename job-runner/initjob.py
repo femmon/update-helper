@@ -67,12 +67,17 @@ def initjob(workspace_path, oreo_controller, connection, body):
                 (snippet_id) SET job_id = %s, job_component_status = %s'''
             cursor.execute(load_component_query, (temp_path, body['job_id'], statuses['QUEUEING']))
 
-            get_component_id_query = 'SELECT job_component_id, snippet_id FROM `update_helper`.`job_component` WHERE job_id = %s'
-            cursor.execute(get_component_id_query, (body['job_id']))
-            component_and_snippet_map = dict((snippet_id, job_component_id) for job_component_id, snippet_id in cursor.fetchall())
+            # Need to retry fetch because sometimes rows is empty
+            rows = ()
+            while (len(rows) != len(similar_snippets)):
+                print('Fetching component ids')
+                get_component_id_query = 'SELECT job_component_id, snippet_id FROM `update_helper`.`job_component` WHERE job_id = %s'
+                cursor.execute(get_component_id_query, (body['job_id']))
+                rows = cursor.fetchall()
         connection.commit()
         os.remove(temp_path)
 
+        component_and_snippet_map = dict((snippet_id, job_component_id) for job_component_id, snippet_id in rows)
         message_batches = [[]]
         for snippet_id, snippet_file in similar_snippets:
             if len(message_batches[-1]) == 10:
