@@ -5,7 +5,7 @@ import uuid
 
 def save_file_hash(connection, file_dict, temp_path):
     with open(temp_path, 'w') as data:
-        data_writer = csv.writer(data)
+        data_writer = csv.writer(data, lineterminator='\n')
         for real_path, hash_path in file_dict.items():
             data_writer.writerow([real_path, hash_path])
 
@@ -45,10 +45,11 @@ def save_file_hash(connection, file_dict, temp_path):
 
 def save_file_usage(connection, job_id, file_ids, temp_path):
     with open(temp_path, 'w') as data:
-        data_writer = csv.writer(data)
+        data_writer = csv.writer(data, lineterminator='\n')
         for file_id in file_ids:
             data_writer.writerow([job_id, file_id])
 
+    connection.ping(reconnect=True)
     with connection.cursor() as cursor:
         load_new_query = 'LOAD DATA LOCAL INFILE %s INTO TABLE `job_file_usage` FIELDS TERMINATED BY "," LINES TERMINATED BY "\n"'
         cursor.execute(load_new_query, (temp_path))

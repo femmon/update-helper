@@ -56,7 +56,7 @@ def initjob(workspace_path, oreo_controller, connection, body):
 
     if status == statuses['RUNNING']:
         with open(temp_path, 'w') as data:
-            data_writer = csv.writer(data)
+            data_writer = csv.writer(data, lineterminator='\n')
             for snippet_id, snippet_file in similar_snippets:
                 data_writer.writerow([snippet_id])
 

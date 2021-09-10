@@ -218,7 +218,7 @@ def find_guava_version(guava_versions, project_name, project_version):
 # Database
 def save_file_hash(connection, file_dict):
     with open(TEMP_PATH, 'w') as data:
-        data_writer = csv.writer(data)
+        data_writer = csv.writer(data, lineterminator='\n')
         for real_path, hash_path in file_dict.items():
             data_writer.writerow([real_path, hash_path])
 
@@ -273,7 +273,7 @@ def save_version(connection, s3, source, project_version, guava_version, snippet
 
 def save_file_usage(connection, snippet_id, file_ids):
     with open(TEMP_PATH, 'w') as data:
-        data_writer = csv.writer(data)
+        data_writer = csv.writer(data, lineterminator='\n')
         for file_id in file_ids:
             data_writer.writerow([snippet_id, file_id])
 
