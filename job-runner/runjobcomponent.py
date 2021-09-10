@@ -63,8 +63,8 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
         'job_status': 'FINISHED' if is_finished else 'RUNNING',
         'results': [{
             'result_id': result[0],
-            'origial_file_path': result[1],
-            'origial_function_location': result[2],
+            'original_file_path': result[1],
+            'original_function_location': result[2],
             'clone_source': body['snippet_source'],
             'clone_version': body['snippet_version'],
             'clone_file_path': result[3],
