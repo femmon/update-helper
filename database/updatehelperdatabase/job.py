@@ -14,6 +14,7 @@ def update_job_component_status(connection, job_component_id, status):
 
 
 def check_and_update_finished_job(connection, job_id):
+    finished = False
     connection.ping(reconnect=True)
     with connection.cursor() as cursor:
         statuses = get_statuses(cursor)
@@ -29,7 +30,10 @@ def check_and_update_finished_job(connection, job_id):
         if unfinised_count == 0:
             update_status_query = 'UPDATE `update_helper`.`job` SET job_status = %s WHERE job_id = %s'
             cursor.execute(update_status_query, (statuses['FINISHED'], job_id))
+            finished = True
     connection.commit()
+
+    return finished
 
 
 def save_component_result(connection, job_component_id, clones, temp_path):
@@ -74,7 +78,8 @@ def save_component_result(connection, job_component_id, clones, temp_path):
         cursor.execute(create_result_query, (job_component_id, temp_table_name))
 
         get_ids_query = '''
-            SELECT R.job_result_id FROM `update_helper`.`%s` AS T
+            SELECT R.job_result_id, F1.real_path, T.job_function, F2.real_path, T.snippet_function
+            FROM `update_helper`.`%s` AS T
             JOIN `update_helper`.`file` AS F1 ON T.job_file = F1.hash_path
             JOIN `update_helper`.`file` AS F2 ON T.snippet_file = F2.hash_path
             JOIN `update_helper`.`job_result` AS R
@@ -85,7 +90,7 @@ def save_component_result(connection, job_component_id, clones, temp_path):
             WHERE job_component_id = %s
         '''
         cursor.execute(get_ids_query, (temp_table_name, job_component_id))
-        id_records = cursor.fetchall()
+        results = cursor.fetchall()
 
         delete_query = 'DROP TABLE `update_helper`.`%s`'
         cursor.execute(delete_query, (temp_table_name))
@@ -93,7 +98,7 @@ def save_component_result(connection, job_component_id, clones, temp_path):
     connection.commit()
     os.remove(temp_path)
 
-    return list(map(lambda row: row[0], id_records))
+    return results
 
 
 def extract_function_locations(function_location):

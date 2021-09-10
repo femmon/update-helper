@@ -3,8 +3,12 @@ import csv
 import json
 import os
 from projectcontroller import GitController
+import requests
 import shutil
 from updatehelperdatabase import file
+
+
+SERVER_HOST = os.environ['SERVER_HOST']
 
 
 def initjob(workspace_path, oreo_controller, connection, body):
@@ -48,11 +52,18 @@ def initjob(workspace_path, oreo_controller, connection, body):
                 WHERE A.guava_version = %s and B.guava_version = %s'''
             cursor.execute(similar_project_query, (body['source_guava_version'], body['target_guava_version']))
             similar_snippets = cursor.fetchall()
+            similar_snippets = similar_snippets[:2] # TODO: Need a different way to limit number of snippets
             status = statuses['FINISHED'] if len(similar_snippets) == 0 else statuses['RUNNING']
 
         update_status_query = 'UPDATE `update_helper`.`job` SET job_snippet_file = %s, job_status = %s WHERE job_id = %s'
         cursor.execute(update_status_query, (extended_job_id, status, body['job_id']))
     connection.commit()
+
+    r = requests.post(f'{SERVER_HOST}job/{body["job_id"]}', json = {
+        'job_id': body['job_id'],
+        'job_status': [k for k,v in statuses.items() if v == status][0],
+        'results': []
+    })
 
     if status == statuses['RUNNING']:
         with open(temp_path, 'w') as data:
@@ -71,23 +82,34 @@ def initjob(workspace_path, oreo_controller, connection, body):
             rows = ()
             while (len(rows) != len(similar_snippets)):
                 print('Fetching component ids')
-                get_component_id_query = 'SELECT job_component_id, snippet_id FROM `update_helper`.`job_component` WHERE job_id = %s'
+                get_component_id_query = '''
+                    SELECT C.job_component_id, C.snippet_id, S.source, S.project_version
+                    FROM `update_helper`.`job_component` AS C
+                    JOIN `update_helper`.`snippet` AS S ON C.snippet_id = S.snippet_id
+                    WHERE C.job_id = %s
+                '''
                 cursor.execute(get_component_id_query, (body['job_id']))
                 rows = cursor.fetchall()
         connection.commit()
         os.remove(temp_path)
 
-        component_and_snippet_map = dict((snippet_id, job_component_id) for job_component_id, snippet_id in rows)
+        component_and_snippet_map = dict((snippet_id, {
+            'job_component_id': job_component_id,
+            'snippet_source': snippet_source,
+            'snippet_version': snippet_version
+        }) for job_component_id, snippet_id, snippet_source, snippet_version in rows)
         message_batches = [[]]
         for snippet_id, snippet_file in similar_snippets:
             if len(message_batches[-1]) == 10:
                 message_batches.append([])
 
             message_body = {
-                'job_component_id': component_and_snippet_map[snippet_id],
+                'job_component_id': component_and_snippet_map[snippet_id]['job_component_id'],
                 'job_id': body['job_id'],
                 'job_snippet_file': extended_job_id,
                 'snippet_file': snippet_file,
+                'snippet_source': component_and_snippet_map[snippet_id]['snippet_source'],
+                'snippet_version': component_and_snippet_map[snippet_id]['snippet_version'],
                 'status': statuses['QUEUEING']
             }
             message_batches[-1].append({
