@@ -1,8 +1,9 @@
 import boto3
 from flask import abort, Blueprint, jsonify, request, url_for
-import json
-import database
 from flask_socketio import emit, join_room
+import json
+from updatehelperdatabase import job as job_model
+import database
 from __main__ import socketio
 
 
@@ -12,10 +13,28 @@ job = Blueprint('job', __name__)
 @job.route('/', methods=['GET'])
 def get_job():
     with database.connect() as connection:
-        with connection.cursor() as cursor:
-            get_job_query = 'SELECT * FROM `update_helper`.`job`'
-            cursor.execute(get_job_query)
-            return jsonify(cursor.fetchall())
+        raw_jobs = job_model.get_jobs(connection)
+        jobs = {}
+        for raw_job in raw_jobs:
+            if raw_job[0] not in jobs:
+                jobs[raw_job[0]] = []
+            jobs[raw_job[0]].append(raw_job)
+        res = [{
+            'job_id': job_id,
+            'job_source': job_results[0][1],
+            'job_commit': job_results[0][2],
+            'job_status': job_results[0][3],
+            'results': [{
+                'result_id': result[4],
+                'original_file_path': result[5],
+                'original_function_location': result[6],
+                'clone_source': result[7],
+                'clone_version': result[8],
+                'clone_file_path': result[9],
+                'clone_function_location': result[10]
+            } for result in job_results if result[4] is not None]
+        } for job_id, job_results in jobs.items()]
+        return jsonify(res)
 
 
 POST_JOB_ROUTE = '/'
