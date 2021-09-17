@@ -8,7 +8,7 @@ flask = "==2.0.1"
 pymysql = "==1.0.2"
 boto3 = "==1.18.11"
 flask-socketio = "==5.1.1"
-update-helper-database = {editable = true, path = "./../database"}
+update-helper-database = {editable = true, path = "./../lib/database"}
 
 [dev-packages]
 

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "412caa8953f0d9771f0f9df848a08068b981a3d93542e64b4730449c078985da"
+            "sha256": "b782ddfc1a8a55491889be45c369e1310eb206f99fff0a69233c0eb1d7144614"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -39,11 +39,11 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:7289a7cc8450914860e7fb375a461a754a4d9b9c8a6ed42552afd6b99b14b394",
-                "sha256:7df81e52b74ec5a3f5eab210bdc4a537994225783e8d8ccaa136028c8518f244"
+                "sha256:b74d0a5fe0f7b73fa4b5670eaa9ff456b0bce70966d478dcd631c91458916eb6",
+                "sha256:de7bf9c9098578d386b785b5b6eab954acccd3f79fe3e2eb971da608c967082b"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==1.21.39"
+            "version": "==1.21.43"
         },
         "certifi": {
             "hashes": [
@@ -54,11 +54,11 @@
         },
         "charset-normalizer": {
             "hashes": [
-                "sha256:0c8911edd15d19223366a194a513099a302055a962bca2cec0f54b8b63175d8b",
-                "sha256:f23667ebe1084be45f6ae0538e4a5a865206544097e4e8bbcacf42cd02a348f3"
+                "sha256:7098e7e862f6370a2a8d1a6398cd359815c45d12626267652c3f13dec58e2367",
+                "sha256:fa471a601dfea0f492e4f4fca035cd82155e65dc45c9b83bf4322dfab63755dd"
             ],
             "markers": "python_version >= '3'",
-            "version": "==2.0.4"
+            "version": "==2.0.5"
         },
         "futures": {
             "hashes": [
@@ -368,11 +368,11 @@
         },
         "update-helper-database": {
             "editable": true,
-            "path": "./../database"
+            "path": "./../lib/database"
         },
         "update-helper-project-controller": {
             "editable": true,
-            "path": "./../projectcontroller"
+            "path": "./../lib/projectcontroller"
         },
         "urllib3": {
             "hashes": [
