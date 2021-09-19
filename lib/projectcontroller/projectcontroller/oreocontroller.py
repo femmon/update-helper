@@ -1,5 +1,4 @@
 import os
-import pexpect
 import re
 import shutil
 import subprocess
@@ -21,10 +20,11 @@ class OreoController:
             self.init_java_parser()
 
     def init_java_parser(self):
-        pexpect.run(
-            'ant metric',
+        subprocess.run(
+            ['ant', 'metric'],
             cwd=self.mount_dir + 'oreo/java-parser',
-            timeout=None
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
 
     def calculate_metric(self, source):

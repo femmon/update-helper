@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 pymysql = "==1.0.2"
 boto3 = "==1.18.11"
-update-helper-project-controller = {editable = true, path = "./../projectcontroller"}
+update-helper-project-controller = {editable = true, path = "./../lib/projectcontroller"}
 
 [dev-packages]
 

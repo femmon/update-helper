@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "df6d880724825b878949a6610bb2423fa09a014e8f779f169abc8194a8eb0de4"
+            "sha256": "375577c745008c8876b8324f0905fa21b15e1c322e825e4d4e426269b9e5ecac"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -39,11 +39,11 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:5171b7db1c3346dd687ac0a195f69538c05ee0c2c26510de2019d0a0949297bf",
-                "sha256:beefe7dee5020e1f7cda84685131533324742529d8a5686ce959047e1b3e3928"
+                "sha256:2e134c9f799015e448086ed2b809fe50cc776f6600f093d1a44772288e61260f",
+                "sha256:c7640cb49c0e009bea4ad767715acbe0d305b7007235f52422bf31b5d23be8f1"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==1.21.38"
+            "version": "==1.21.44"
         },
         "futures": {
             "hashes": [
@@ -158,13 +158,6 @@
             ],
             "version": "==0.22.0"
         },
-        "pexpect": {
-            "hashes": [
-                "sha256:0b48a55dcb3c05f3329815901ea4fc1537514d6ba867a152b581d69ae3710937",
-                "sha256:fc65a43959d153d0114afe13997d439c22823a27cefceb5ff35c2178c6784c0c"
-            ],
-            "version": "==4.8.0"
-        },
         "protobuf": {
             "hashes": [
                 "sha256:06ec363b74bceb7d018f2171e0892f03ab6816530e2b0f77d725a58264551e48",
@@ -177,13 +170,6 @@
                 "sha256:c1f9c36004a7ae6f1ce4a23f06070f6b07f57495f251851aa15cc4da16d08378"
             ],
             "version": "==3.5.1"
-        },
-        "ptyprocess": {
-            "hashes": [
-                "sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35",
-                "sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220"
-            ],
-            "version": "==0.7.0"
         },
         "pymysql": {
             "hashes": [
@@ -337,7 +323,7 @@
         },
         "update-helper-project-controller": {
             "editable": true,
-            "path": "./../projectcontroller"
+            "path": "./../lib/projectcontroller"
         },
         "urllib3": {
             "hashes": [

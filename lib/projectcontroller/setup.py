@@ -22,7 +22,6 @@ setuptools.setup(
         'tensorflow-tensorboard==1.5.0',
         'Markdown==2.6.11',
         'PyYAML==3.12',
-        'Werkzeug==0.14.1',
-        'pexpect==4.8.0'
+        'Werkzeug==0.14.1'
     ]
 )
