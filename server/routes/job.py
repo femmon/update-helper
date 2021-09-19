@@ -77,7 +77,7 @@ def get_blueprint_mounted_route(request_rule, current_route):
     return request_rule[:current_route_position]
 
 
-@job.route('/<id>', methods=['POST'])
+@job.route('/<int:id>', methods=['POST'])
 def post_progress(id):
     emit('progress', request.json, namespace='/', room=id)
     return '', 200
@@ -85,4 +85,4 @@ def post_progress(id):
 
 @socketio.on('register')
 def register_room(data):
-    join_room(data['job_id'])
+    join_room(int(data['job_id']))
