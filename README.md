@@ -7,7 +7,7 @@ This is the back-end of the project Update Helper. It comprises 3 main modules:
 There are also 2 common modules that are used in the main modules:
 - `update-helper-database` manages database operations
 - `update-helper-project-controller` is a wrapper around git commands and [Oreo](https://github.com/Mondego/oreo-artifact) operations
-
+- `update-helper-semver` handles working with versions
 # Dependencies
 This project is designed to run on Linux, and it makes use of AWS services. This page only lists the common dependencies between modules.
 The programs will access these services through the credential/configuration in the environment variables.

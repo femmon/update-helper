@@ -9,6 +9,7 @@ pymysql = "==1.0.2"
 requests = "==2.26.0"
 update-helper-database = {editable = true, path = "./../lib/database"}
 update-helper-project-controller = {editable = true, path = "./../lib/projectcontroller"}
+update-helper-semver = {editable = true, path = "./../lib/semver"}
 
 [dev-packages]
 

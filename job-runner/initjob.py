@@ -1,11 +1,14 @@
 import boto3
 import csv
+import functools
 import json
+import math
 import os
 from projectcontroller import GitController
 import requests
 import shutil
 from updatehelperdatabase import file
+from updatehelpersemver import cmp_version
 
 
 SERVER_HOST = os.environ['SERVER_HOST']
@@ -47,12 +50,36 @@ def initjob(workspace_path, oreo_controller, connection, body):
         if os.stat(oreo_controller.snippet_path).st_size == 0:
             status = statuses['FINISHED']
         else:
-            similar_project_query = '''SELECT DISTINCTROW A.snippet_id, A.snippet_file
-                FROM snippet AS A JOIN snippet AS B ON A.source = B.source
-                WHERE A.guava_version = %s and B.guava_version = %s'''
-            cursor.execute(similar_project_query, (body['source_guava_version'], body['target_guava_version']))
+            MAX_NO_OF_COMPARE = 10
+            similar_project_query = '''
+                SELECT S.snippet_id, S.snippet_file, S.source, S.project_version FROM snippet AS S JOIN (
+                    SELECT full_project.source FROM (
+                        SELECT DISTINCTROW A.source
+                        FROM snippet AS A JOIN snippet AS B ON A.source = B.source
+                        WHERE A.guava_version = %s and B.guava_version = %s
+                    ) AS full_project ORDER BY RAND() LIMIT %s
+                ) AS project ON S.source = project.source
+                WHERE S.guava_version = %s
+            '''
+            cursor.execute(similar_project_query, (body['source_guava_version'], body['target_guava_version'], MAX_NO_OF_COMPARE, body['source_guava_version']))
             similar_snippets = cursor.fetchall()
-            similar_snippets = similar_snippets[:2] # TODO: Need a different way to limit number of snippets
+            similar_snippets_by_source = {}
+            for snippet_id, snippet_file, snippet_source, snippet_project_version in similar_snippets:
+                if snippet_source not in similar_snippets_by_source:
+                    similar_snippets_by_source[snippet_source] = []
+                similar_snippets_by_source[snippet_source].append((snippet_id, snippet_file, snippet_project_version))
+
+            similar_snippets = []
+            remaining_projects = len(similar_snippets_by_source)
+            for project_versions in similar_snippets_by_source.values():
+                # Might not be required
+                if len(similar_snippets) >= MAX_NO_OF_COMPARE:
+                    break
+                project_versions = sorted(project_versions, key=lambda project: functools.cmp_to_key(cmp_version)(project[2]))
+                no_snippet_from_current_project = math.ceil((MAX_NO_OF_COMPARE - len(similar_snippets)) / remaining_projects)
+                similar_snippets += project_versions[-no_snippet_from_current_project:]
+                remaining_projects -= 1
+            similar_snippets = list(map(lambda similar_snippet: (similar_snippet[0], similar_snippet[1]), similar_snippets))
             status = statuses['FINISHED'] if len(similar_snippets) == 0 else statuses['RUNNING']
 
         update_status_query = 'UPDATE `update_helper`.`job` SET job_snippet_file = %s, job_status = %s WHERE job_id = %s'

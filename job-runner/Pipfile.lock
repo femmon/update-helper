@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b782ddfc1a8a55491889be45c369e1310eb206f99fff0a69233c0eb1d7144614"
+            "sha256": "70613ae513a248ae63de587a2a310fc87dfd372b525cf65c137cf4a5cc6ea5fc"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -359,6 +359,10 @@
         "update-helper-project-controller": {
             "editable": true,
             "path": "./../lib/projectcontroller"
+        },
+        "update-helper-semver": {
+            "editable": true,
+            "path": "./../lib/semver"
         },
         "urllib3": {
             "hashes": [
