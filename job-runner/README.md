@@ -8,7 +8,6 @@
 # Running
 Besides the universal environment variables, add to `.env` file : 
 ```
-JAVA_HOME=/user/bin # For Oreo
 AWS_LAMBDA_RUNTIME_API=python3.6 # For AWS Lambda RIE
 SERVER_HOST=http://localhost:5000/ # If running `server` alongside `job-runner`
 ```
@@ -28,3 +27,4 @@ After setting up AWS, deployment involves retrieving authentication token, tag i
 docker tag myfunction:latest ecr.url.amazonaws.com/update-helper:latest
 docker push ecr.url.amazonaws.com/update-helper:latest
 ```
+The environment variables need to be configured as well using the setting in [Running](#Running).

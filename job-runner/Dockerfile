@@ -55,9 +55,11 @@ RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | a
   apt-get install -y \
     adoptopenjdk-8-hotspot \
     ant
+ENV JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-amd64
 
 # Copy in the built dependencies
 COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
+ENV PYTHONPATH=${FUNCTION_DIR}:$PYTHONPATH
 
 ENTRYPOINT [ "/usr/local/bin/python", "-m", "awslambdaric" ]
 CMD [ "main.lambda_handler" ]
