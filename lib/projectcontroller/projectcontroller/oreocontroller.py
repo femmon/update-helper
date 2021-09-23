@@ -16,8 +16,17 @@ class OreoController:
         self.clone_detector_input_path = self.clone_detector_path + 'input/dataset/'
         self.clone_result_path = self.mount_dir + 'oreo/results/predictions/'
 
+        self.patch_cache_location()
         if init_java_parser:
             self.init_java_parser()
+
+    # The default location is in Lambda read-only storage
+    def patch_cache_location(self):
+        with open(self.clone_detector_path + 'runnodes.sh', 'r+') as f:
+            old_script = f.read()
+            new_script = old_script.replace('java', f'java -Deproperties.cache.root="{self.mount_dir}.eproperties/cache/"')
+            f.seek(0)
+            f.write(new_script)
 
     def init_java_parser(self):
         subprocess.run(

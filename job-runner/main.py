@@ -4,7 +4,9 @@ import os
 import pymysql
 from projectcontroller import GitController
 from projectcontroller import OreoController
+import shutil
 from updatehelperdatabase import job
+import uuid
 from initjob import initjob
 from runjobcomponent import run_job_component
 
@@ -20,11 +22,6 @@ DATABASE = os.environ['MYSQL_DATABASE']
 
 
 def lambda_handler(event, context):
-    WORKSPACE_PATH = '/tmp/' + WORKSPACE_NAME + '/'
-    OREO_PATH = WORKSPACE_PATH + 'oreo-artifact/'
-    git_controller = GitController(OREO_PATH, 'https://github.com/Mondego/oreo-artifact.git', cloned=os.path.exists(OREO_PATH))
-    oreo_controller = OreoController(OREO_PATH, init_java_parser=True)
-
     with pymysql.connect(host=HOST, port=PORT, user=USER, password=PASSWORD, database=DATABASE, local_infile=True) as connection:
         with connection.cursor() as cursor:
             statuses = job.get_statuses(cursor)
@@ -34,7 +31,7 @@ def lambda_handler(event, context):
             # Body is string when deployed, object when run locally
             body = json.loads(record['body']) if isinstance(record['body'], str) else record['body']
             print(f'Got message {body}')
-            message_router(statuses, WORKSPACE_PATH, oreo_controller, connection, body)
+            message_router(statuses, connection, body)
 
         print('Processed messages')
 
@@ -44,18 +41,37 @@ def lambda_handler(event, context):
     }
  
 
-def message_router(statuses, WORKSPACE_PATH, oreo_controller, connection, body):
+def message_router(statuses, connection, body):
+    workspace_path = f'/mnt/tmp/{WORKSPACE_NAME}/{body["status"]}'
     if body['status'] == statuses['INITIALIZING']:
-        initjob(WORKSPACE_PATH, oreo_controller, connection, body)
+        workspace_path += f'-{body["job_id"]}/'
     elif body['status'] == statuses['QUEUEING']:
-        run_job_component(WORKSPACE_PATH, oreo_controller, connection, body)
+        workspace_path += f'-{body["job_id"]}-{body["job_component_id"]}/'
+    # TODO: consider what happends if there are 2 Lambda functions using the same workspace_path,
+    # or if this is the second time a message is processed
+    try:
+        shutil.rmtree(workspace_path)
+    except:
+        pass
+
+    oreo_path = workspace_path + 'oreo-artifact/'
+    git_controller = GitController(oreo_path, 'https://github.com/Mondego/oreo-artifact.git')
+    oreo_controller = OreoController(oreo_path, init_java_parser=True)
+
+    try:
+        if body['status'] == statuses['INITIALIZING']:
+            initjob(workspace_path, oreo_controller, connection, body)
+        elif body['status'] == statuses['QUEUEING']:
+            run_job_component(workspace_path, oreo_controller, connection, body)
+    finally:
+        shutil.rmtree(workspace_path)
 
 
 if __name__ == '__main__':
-    WORKSPACE_PATH = SCRIPT_PATH + WORKSPACE_NAME + '/'
-    OREO_PATH = WORKSPACE_PATH + 'oreo-artifact/'
-    git_controller = GitController(OREO_PATH, 'https://github.com/Mondego/oreo-artifact.git', cloned=os.path.exists(OREO_PATH))
-    oreo_controller = OreoController(OREO_PATH, init_java_parser=True)
+    workspace_path = SCRIPT_PATH + WORKSPACE_NAME + '/'
+    oreo_path = workspace_path + 'oreo-artifact/'
+    git_controller = GitController(oreo_path, 'https://github.com/Mondego/oreo-artifact.git', cloned=os.path.exists(oreo_path))
+    oreo_controller = OreoController(oreo_path, init_java_parser=True)
 
     with pymysql.connect(host=HOST, port=PORT, user=USER, password=PASSWORD, database=DATABASE, local_infile=True) as connection:
         with connection.cursor() as cursor:
@@ -68,7 +84,7 @@ if __name__ == '__main__':
             for message in queue.receive_messages():
                 body = json.loads(message.body)
                 print(f'Got message {body}')
-                message_router(statuses, WORKSPACE_PATH, oreo_controller, connection, body)
+                message_router(statuses, workspace_path, oreo_controller, connection, body)
 
                 print('Processed message')
                 message.delete()
