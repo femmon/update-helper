@@ -85,12 +85,14 @@ def save_component_result(connection, job_component_id, clones, temp_path):
         '''
         cursor.execute(load_new_query, (temp_path, temp_table_name))
 
+        # Temp table only has file hashes but job_result requires id, so join is required
         create_result_query = '''
             INSERT INTO `update_helper`.`job_result`
             SELECT NULL, %s, F1.file_id, T.job_function, F2.file_id, T.snippet_function
             FROM `update_helper`.`%s` AS T 
             JOIN `update_helper`.`file` AS F1 ON T.job_file = F1.hash_path
             JOIN `update_helper`.`file` AS F2 ON T.snippet_file = F2.hash_path
+            ON DUPLICATE KEY UPDATE job_result_id = job_result_id
         '''
         cursor.execute(create_result_query, (job_component_id, temp_table_name))
 
