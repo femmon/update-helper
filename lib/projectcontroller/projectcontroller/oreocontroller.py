@@ -3,6 +3,10 @@ import re
 import shutil
 import subprocess
 import time
+import sys
+
+
+VERBOSE = True
 
 
 class OreoController:
@@ -32,8 +36,8 @@ class OreoController:
         subprocess.run(
             ['ant', 'metric'],
             cwd=self.mount_dir + 'oreo/java-parser',
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stdout=sys.stdout if VERBOSE else subprocess.DEVNULL,
+            stderr=sys.stdout if VERBOSE else subprocess.DEVNULL
         )
 
     def calculate_metric(self, source):
@@ -69,6 +73,8 @@ class OreoController:
                             ['python3', 'metricCalculationWorkManager.py', '1', 'd', source],
                             cwd = self.python_scripts_path
                         )
+        
+        OreoController.check_clone_input(self.snippet_path)
 
     def clean_up_metric(self):
         # There might be no output folder
@@ -91,25 +97,29 @@ class OreoController:
             subprocess.run(
                 ['./cleanup.sh'],
                 cwd=self.clone_detector_path,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stdout=sys.stdout if VERBOSE else subprocess.DEVNULL,
+                stderr=sys.stdout if VERBOSE else subprocess.DEVNULL
             )
             
             clone_controller = subprocess.Popen(
                 ['python', 'controller.py', '1'],
                 stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 cwd=self.clone_detector_path
             )
 
             subprocess.run(
                 ['./runPredictor.sh'],
                 cwd=self.python_scripts_path,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stdout=sys.stdout if VERBOSE else subprocess.DEVNULL,
+                stderr=sys.stdout if VERBOSE else subprocess.DEVNULL
             )
 
             # TODO: starting sending out result while it's running: https://github.com/dabeaz/generators/blob/master/examples/follow.py
             output, e = clone_controller.communicate()
+            if VERBOSE:
+                print(output)
+                print(e)
             output = [line for line in output.decode().split('\n') if line != '']
             if output[-1] != 'SUCCESS: Search Completed on all nodes':
                 raise RuntimeError()
@@ -125,3 +135,16 @@ class OreoController:
                     subprocess.run(['kill', '-9', pid])
 
             raise e
+
+    @staticmethod
+    def check_clone_input(input_path):
+        total = 0
+        count = 0
+        with open(input_path) as f:
+            for line in f:
+                total += 1
+                if len(line.split('@#@')[0].split(',')) < 6:
+                    count += 1
+                    if count < 3:
+                        print(line)
+        print(f'{count} broken out of {total}')

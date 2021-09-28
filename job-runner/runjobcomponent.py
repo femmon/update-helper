@@ -1,5 +1,6 @@
 import boto3
 import os
+from pathlib import Path
 import requests
 from updatehelperdatabase import job
 
@@ -18,6 +19,7 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
         s3.download_fileobj('update-helper', body['job_snippet_file'], f)
         s3.download_fileobj('update-helper', body['snippet_file'], f)
     print('Downloaded snippets')
+    oreo_controller.check_clone_input(temp_txt)
     
     try:
         oreo_controller.detect_clone(temp_txt)
@@ -29,6 +31,17 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
             'job_status': 'FINISHED' if is_finished else 'RUNNING',
             'results': []
         })
+
+        logs = ["Log_execute_1.out","Log_execute_1.err","Log_restore_gtpm.out","Log_restore_gtpm.err","Log_backup_gtpm.out","Log_backup_gtpm.err","Log_init.out","Log_init.err","Log_cshard.out","Log_cshard.err", "Log_search.out", "Log_search.err"]
+        for log in logs:
+            log_path = oreo_controller.clone_detector_path + log
+            if os.path.isfile(log_path):
+                with open(log_path) as f:
+                    print('Reading ' + log_path)
+                    for line in f:
+                        print(line)
+
+        clean_up(files=temp_paths)
         print('Can\'t detect clones')
         return
 
