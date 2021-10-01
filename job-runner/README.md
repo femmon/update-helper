@@ -11,7 +11,11 @@ Besides the universal environment variables, add to `.env` file :
 ```
 AWS_LAMBDA_RUNTIME_API=python3.6 # For AWS Lambda RIE
 SERVER_HOST=http://localhost:5000/ # If running `server` alongside `job-runner`
+GITHUB_USERNAME # This and the next one is optional. GitHub API can be used without it but with a very limited number of request
+GITHUB_TOKEN
 ```
+This [article](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) have the instructions to create the GitHub token.
+
 All of the commands here are run from the module root '/job-runner'
 ```
 docker build -f ./Dockerfile -t myfunction:latest ../

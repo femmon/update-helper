@@ -190,7 +190,11 @@ def extract_github_repo(source):
 def retrieve_file_content(repo, ref, file_path):
     params = {'ref': ref}
     headers = {'Accept': 'application/vnd.github.v3+json'}
-    auth = (os.environ['GITHUB_USERNAME'], os.environ['GITHUB_TOKEN'])
+    try:
+        auth = (os.environ['GITHUB_USERNAME'], os.environ['GITHUB_TOKEN'])
+    except KeyError:
+        auth = None
+
     r = requests.get(f'https://api.github.com/repos/{repo}/contents/{file_path}', params=params, headers=headers, auth=auth)
     if r.status_code == 200:
         return base64.b64decode(r.json()['content']).decode()
