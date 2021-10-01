@@ -1,6 +1,10 @@
+import functools
+
+
+# TODO duplicate of fetchprojects.py
 def cmp_version(version_a, version_b):
-    version_a_list = process_version(version_a[0])
-    version_b_list = process_version(version_b[0])
+    version_a_list = process_version(version_a)
+    version_b_list = process_version(version_b)
     for i in range(min(len(version_a_list), len(version_b_list))):
         try:
             result = compare(version_a_list[i], version_b_list[i])
@@ -33,3 +37,7 @@ def compare(a, b):
     elif a < b:
         return -1
     return 0
+
+
+def sort_version(iterator, key=None):
+    return sorted(iterator, key=lambda item: functools.cmp_to_key(cmp_version)(item if key is None else item[key]))

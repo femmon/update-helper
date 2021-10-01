@@ -8,7 +8,7 @@ from projectcontroller import GitController
 import requests
 import shutil
 from updatehelperdatabase import file
-from updatehelpersemver import cmp_version
+from updatehelpersemver import sort_version
 
 
 SERVER_HOST = os.environ['SERVER_HOST']
@@ -75,7 +75,7 @@ def initjob(workspace_path, oreo_controller, connection, body):
                 # Might not be required
                 if len(similar_snippets) >= MAX_NO_OF_COMPARE:
                     break
-                project_versions = sorted(project_versions, key=lambda project: functools.cmp_to_key(cmp_version)(project[2]))
+                project_versions = sort_version(project_versions, key=2)
                 no_snippet_from_current_project = math.ceil((MAX_NO_OF_COMPARE - len(similar_snippets)) / remaining_projects)
                 similar_snippets += project_versions[-no_snippet_from_current_project:]
                 remaining_projects -= 1
@@ -133,7 +133,10 @@ def initjob(workspace_path, oreo_controller, connection, body):
             message_body = {
                 'job_component_id': component_and_snippet_map[snippet_id]['job_component_id'],
                 'job_id': body['job_id'],
+                'job_source': body['source'],
+                'job_commit': body['commit'],
                 'job_snippet_file': extended_job_id,
+                'target_guava_version': body['target_guava_version'],
                 'snippet_file': snippet_file,
                 'snippet_source': component_and_snippet_map[snippet_id]['snippet_source'],
                 'snippet_version': component_and_snippet_map[snippet_id]['snippet_version'],

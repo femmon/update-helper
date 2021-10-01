@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 import shutil
@@ -74,7 +75,7 @@ class OreoController:
                             cwd = self.python_scripts_path
                         )
         
-        OreoController.check_clone_input(self.snippet_path)
+        OreoController.fix_clone_input(self.snippet_path, self.mount_dir + 'temp.txt')
 
     def clean_up_metric(self):
         # There might be no output folder
@@ -93,6 +94,7 @@ class OreoController:
         # Old results might interfere with the current run
         shutil.rmtree(self.clone_result_path, ignore_errors=True)
 
+        print(f'Start detecting clone at: {datetime.datetime.now()}')
         try:
             subprocess.run(
                 ['./cleanup.sh'],
@@ -118,11 +120,14 @@ class OreoController:
             # TODO: starting sending out result while it's running: https://github.com/dabeaz/generators/blob/master/examples/follow.py
             output, e = clone_controller.communicate()
             if VERBOSE:
+                print(f'Output of {clone_controller.args}:')
                 print(output)
+                print(f'Error of {clone_controller.args}:')
                 print(e)
             output = [line for line in output.decode().split('\n') if line != '']
             if output[-1] != 'SUCCESS: Search Completed on all nodes':
                 raise RuntimeError()
+            print(f'Finish detecting clone at: {datetime.datetime.now()}')
         except Exception as e:
             # Ctrl + C kills everything but exception doesn't stop Popen nor runPredictor children
             ps = subprocess.run(['ps', '-e', '-o', 'pid,command'], stdout = subprocess.PIPE)
@@ -137,9 +142,10 @@ class OreoController:
             raise e
 
     @staticmethod
-    def check_clone_input(input_path):
+    def fix_clone_input(input_path, temp_path):
         total = 0
         count = 0
+        with open(temp_path, 'w') as t:
         with open(input_path) as f:
             for line in f:
                 total += 1
@@ -147,4 +153,8 @@ class OreoController:
                     count += 1
                     if count < 3:
                         print(line)
-        print(f'{count} broken out of {total}')
+                    else:
+                        t.write(line)
+        os.remove(input_path)
+        os.rename(temp_path, input_path)
+        print(f'Fixed {count} broken out of {total}')

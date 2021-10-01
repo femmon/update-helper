@@ -101,8 +101,13 @@ CREATE TABLE `update_helper`.`job_result` (
   `job_component_id` BIGINT UNSIGNED NOT NULL,
   `job_file_id` BIGINT UNSIGNED NOT NULL,
   `job_function` VARCHAR(31) NOT NULL,
+  `job_real_snippet`TEXT,
   `snippet_file_id` BIGINT UNSIGNED NOT NULL,
   `snippet_function` VARCHAR(31) NOT NULL,
+  `snippet_real_snippet`TEXT,
+  `target_file_id` BIGINT UNSIGNED NOT NULL,
+  `target_function` VARCHAR(31) NOT NULL,
+  `target_real_snippet`TEXT,
   CONSTRAINT `job_result_job_component_id`
     FOREIGN KEY (`job_component_id`)
     REFERENCES `update_helper`.`job_component` (`job_component_id`)
@@ -118,6 +123,11 @@ CREATE TABLE `update_helper`.`job_result` (
     REFERENCES `update_helper`.`file` (`file_id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE,
-  UNIQUE KEY (`job_component_id`, `job_file_id`, `job_function`, `snippet_file_id`, `snippet_function`),
+  CONSTRAINT `job_result_target_file_id`
+    FOREIGN KEY (`target_file_id`)
+    REFERENCES `update_helper`.`file` (`file_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  UNIQUE KEY (`job_component_id`, `job_file_id`, `job_function`, `snippet_file_id`, `snippet_function`, `target_file_id`, `target_function`),
   PRIMARY KEY (`job_result_id`)
 );
