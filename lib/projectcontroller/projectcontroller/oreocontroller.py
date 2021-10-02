@@ -146,13 +146,13 @@ class OreoController:
         total = 0
         count = 0
         with open(temp_path, 'w') as t:
-        with open(input_path) as f:
-            for line in f:
-                total += 1
-                if len(line.split('@#@')[0].split(',')) < 6:
-                    count += 1
-                    if count < 3:
-                        print(line)
+            with open(input_path) as f:
+                for line in f:
+                    total += 1
+                    if len(line.split('@#@')[0].split(',')) < 6:
+                        count += 1
+                        if count < 3:
+                            print(line)
                     else:
                         t.write(line)
         os.remove(input_path)
