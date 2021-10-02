@@ -77,6 +77,7 @@ CREATE TABLE `update_helper`.`job_component` (
   `job_component_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `job_id` INT UNSIGNED NOT NULL,
   `snippet_id` INT UNSIGNED NOT NULL,
+  `target_id` INT UNSIGNED,
   `job_component_status` INT UNSIGNED NOT NULL,
   CONSTRAINT `job_component_job_id`
     FOREIGN KEY (`job_id`)
@@ -85,6 +86,11 @@ CREATE TABLE `update_helper`.`job_component` (
     ON UPDATE CASCADE,
   CONSTRAINT `job_component_snippet_id`
     FOREIGN KEY (`snippet_id`)
+    REFERENCES `update_helper`.`snippet` (`snippet_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `job_component_target_id`
+    FOREIGN KEY (`target_id`)
     REFERENCES `update_helper`.`snippet` (`snippet_id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE,

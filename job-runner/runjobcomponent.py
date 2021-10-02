@@ -28,6 +28,10 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
     print('Downloaded snippets')
     oreo_controller.fix_clone_input(temp_txt, temp_txt2)
 
+    if not should_run(temp_txt):
+        clean_up(files=temp_paths)
+        return
+
     try:
         oreo_controller.detect_clone(temp_txt)
     except Exception:
@@ -67,7 +71,7 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
         temp_csv
     )
 
-    job.update_job_component_status(connection, body['job_component_id'], 'FINISHED')
+    job.update_job_component_status(connection, body['job_component_id'], 'FINISHED', target_project[2])
     is_finished = job.check_and_update_finished_job(connection, body['job_id'])
     print(f'Saved results')
 
@@ -84,9 +88,10 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
             'clone_file_path': result[4],
             'clone_function_location': result[5],
             'clone_snippet': result[6],
-            'upgraded_file_path': result[4],
-            'upgraded_function_location': result[5],
-            'upgraded_snippet': result[6],
+            'upgraded_version': target_project[0],
+            'upgraded_file_path': result[7],
+            'upgraded_function_location': result[8],
+            'upgraded_snippet': result[9],
         } for result in results]
     })
 
@@ -105,7 +110,7 @@ def query_target_project(connection, snippet_source, target_guava_version):
     connection.ping(reconnect=True)
     with connection.cursor() as cursor:
         target_project_query = '''
-            SELECT S.project_version, S.snippet_file
+            SELECT S.project_version, S.snippet_file, S.snippet_id
             FROM snippet AS S
             WHERE S.source = %s and S.guava_version = %s
         '''
@@ -114,6 +119,21 @@ def query_target_project(connection, snippet_source, target_guava_version):
         target_projects = sort_version(target_projects, key=0)
     
     return target_projects[0]
+
+
+def should_run(input_path):
+    total = 0
+    with open(input_path) as f:
+        for line in f:
+            total += 1
+
+    # Larger input takes more time to run and more storage to store intermediate result
+    LIMIT = 40000
+    if total > LIMIT:
+        print('Input too large')
+        return False
+    
+    return True
 
 
 def extract_result_set(oreo_controller, snippet_source, snippet_version):

@@ -102,7 +102,7 @@ def initjob(workspace_path, oreo_controller, connection, body):
             load_component_query = '''LOAD DATA LOCAL INFILE %s INTO TABLE `update_helper`.`job_component`
                 FIELDS TERMINATED BY ","
                 LINES TERMINATED BY "\n"
-                (snippet_id) SET job_id = %s, job_component_status = %s'''
+                (snippet_id) SET job_id = %s, target_id = NULL, job_component_status = %s'''
             cursor.execute(load_component_query, (temp_path, body['job_id'], statuses['QUEUEING']))
 
             # Need to retry fetch because sometimes rows is empty

@@ -24,13 +24,17 @@ def get_jobs(connection):
         return cursor.fetchall()
 
 
-def update_job_component_status(connection, job_component_id, status):
+def update_job_component_status(connection, job_component_id, status, target_snippet_id=None):
     connection.ping(reconnect=True)
     with connection.cursor() as cursor:
         statuses = get_statuses(cursor)
 
-        update_status_query = 'UPDATE `update_helper`.`job_component` SET job_component_status = %s WHERE job_component_id = %s'
-        cursor.execute(update_status_query, (statuses[status], job_component_id))
+        update_status_query = '''
+            UPDATE `update_helper`.`job_component`
+            SET target_id = %s, job_component_status = %s
+            WHERE job_component_id = %s
+        '''
+        cursor.execute(update_status_query, (target_snippet_id, statuses[status], job_component_id))
     connection.commit()
 
 
