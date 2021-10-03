@@ -1,8 +1,12 @@
+import base64
 import boto3
+import csv
 import functools
 import os
 from pathlib import Path
+import re
 import requests
+from updatehelperdatabase import file
 from updatehelperdatabase import job
 from updatehelpersemver import sort_version
 
@@ -59,9 +63,8 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
     print('Dectector finished')
 
     result_set = extract_result_set(oreo_controller, body['snippet_source'], body['snippet_version'])
-    results = job.save_component_result(
+    augment_result(
         connection,
-        body['job_component_id'],
         body['job_source'],
         body['job_commit'],
         body['snippet_source'],
@@ -70,6 +73,7 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
         result_set,
         temp_csv
     )
+    results = job.save_component_result(connection, body['job_component_id'], temp_csv)
 
     job.update_job_component_status(connection, body['job_component_id'], 'FINISHED', target_project[2])
     is_finished = job.check_and_update_finished_job(connection, body['job_id'])
@@ -186,3 +190,92 @@ def serialize_source_version_name(source, project_version):
     DASH = '--'
     SLASH = '-s-'
     return f'{source}/{project_version}'.replace('-',DASH).replace('/', SLASH)
+
+
+def augment_result(connection, job_source, job_commit, snippet_source, snippet_version, target_version, result_set, temp_path):
+    file_dict = get_used_files(connection, result_set, temp_path)
+
+    count = 0
+    with open(temp_path, 'w') as data:
+        data_writer = csv.writer(data, lineterminator='\n', quoting=csv.QUOTE_ALL)
+        for job_function_location, snippet_function_location, target_function_location in result_set:
+            job_file, job_function = extract_function_locations(job_function_location)
+            snippet_file, snippet_function = extract_function_locations(snippet_function_location)
+            target_file, target_function = extract_function_locations(target_function_location)
+            try:
+                job_real_snippet = get_snippet(job_source, job_commit, file_dict[job_file], job_function)
+                snippet_real_snippet = get_snippet(snippet_source, snippet_version, file_dict[snippet_file], snippet_function)
+                target_real_snippet = get_snippet(snippet_source, target_version, file_dict[target_file], target_function)
+            except RuntimeError as e:
+                print(e)
+                continue
+
+            data_writer.writerow([
+                job_file, job_function, job_real_snippet,
+                snippet_file, snippet_function, snippet_real_snippet,
+                target_file, target_function, target_real_snippet
+            ])
+            count += 1
+    print(f'Clones: {count}')
+
+
+def get_used_files(connection, result_set, temp_path):
+    hash_paths = []
+    for job_function_location, snippet_function_location, target_function_location in result_set:
+        job_file, job_function = extract_function_locations(job_function_location)
+        hash_paths.append(job_file)
+
+        snippet_file, snippet_function = extract_function_locations(snippet_function_location)
+        hash_paths.append(snippet_file)
+
+        target_file, target_function = extract_function_locations(target_function_location)
+        hash_paths.append(target_file)
+
+    return file.get_real_paths(connection, hash_paths, temp_path)
+
+
+def extract_function_locations(function_location):
+    delimeter_index = function_location.index(',')
+    file_path = function_location[:delimeter_index]
+    function_line = function_location[delimeter_index + 1:].replace(',', '-')
+    return file_path, function_line
+
+
+def get_snippet(source, ref, file_path, function_line):
+    repo = extract_github_repo(source)
+    job_file_content = retrieve_file_content(repo, ref, file_path)
+    return extract_snippet(job_file_content, function_line)
+
+
+def extract_github_repo(source):
+    match = re.search('https://github.com/([^/]+/[^/]+)/?$', source)
+    if match:
+        return match.group(1)
+    raise RuntimeError('Not from Github')
+
+
+def retrieve_file_content(repo, ref, file_path):
+    params = {'ref': ref}
+    headers = {'Accept': 'application/vnd.github.v3+json'}
+    try:
+        auth = (os.environ['GITHUB_USERNAME'], os.environ['GITHUB_TOKEN'])
+    except KeyError:
+        auth = None
+
+    r = requests.get(f'https://api.github.com/repos/{repo}/contents/{file_path}', params=params, headers=headers, auth=auth)
+    if r.status_code == 200:
+        return base64.b64decode(r.json()['content']).decode()
+    elif r.status_code == 404:
+        params = {'ref': 'v' + ref}
+        r = requests.get(f'https://api.github.com/repos/{repo}/contents/{file_path}', params=params, headers=headers)
+        if r.status_code == 200:
+            return base64.b64decode(r.json()['content']).decode()
+
+    raise RuntimeError(f'Request of file {file_path} from {repo} - {ref} returns {r.status_code}')
+
+
+def extract_snippet(text, location):
+    # Because location starting at 1 and including the last line
+    start = int(location.split('-')[0]) - 1
+    end = int(location.split('-')[1])
+    return '\n'.join(text.split('\n')[start:end])

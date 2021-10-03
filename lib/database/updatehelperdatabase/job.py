@@ -1,10 +1,4 @@
-import base64
-import csv
-import os
-import re
-import requests
 import uuid
-from updatehelperdatabase.file import get_real_paths
 
 
 def get_jobs(connection):
@@ -61,34 +55,9 @@ def check_and_update_finished_job(connection, job_id):
     return finished
 
 
-def save_component_result(connection, job_component_id, job_source, job_commit, snippet_source, snippet_version, target_version, result_set, temp_path):
-    file_dict = get_used_files(connection, result_set, temp_path)
-
+def save_component_result(connection, job_component_id, temp_path):
     connection.ping(reconnect=True)
     with connection.cursor() as cursor:
-        count = 0
-        with open(temp_path, 'w') as data:
-            data_writer = csv.writer(data, lineterminator='\n', quoting=csv.QUOTE_ALL)
-            for job_function_location, snippet_function_location, target_function_location in result_set:
-                job_file, job_function = extract_function_locations(job_function_location)
-                snippet_file, snippet_function = extract_function_locations(snippet_function_location)
-                target_file, target_function = extract_function_locations(target_function_location)
-                try:
-                    job_real_snippet = get_snippet(job_source, job_commit, file_dict[job_file], job_function)
-                    snippet_real_snippet = get_snippet(snippet_source, snippet_version, file_dict[snippet_file], snippet_function)
-                    target_real_snippet = get_snippet(snippet_source, target_version, file_dict[target_file], target_function)
-                except RuntimeError as e:
-                    print(e)
-                    continue
-
-                data_writer.writerow([
-                    job_file, job_function, job_real_snippet,
-                    snippet_file, snippet_function, snippet_real_snippet,
-                    target_file, target_function, target_real_snippet
-                ])
-                count += 1
-        print(f'Clones: {count}')
-
         temp_table_name = uuid.uuid4().hex
         create_table_query = '''
             CREATE TABLE `update_helper`.`%s` (
@@ -151,71 +120,8 @@ def save_component_result(connection, job_component_id, job_source, job_commit, 
         cursor.execute(delete_query, (temp_table_name))
 
     connection.commit()
-    os.remove(temp_path)
 
     return results
-
-
-def get_used_files(connection, result_set, temp_path):
-    hash_paths = []
-    for job_function_location, snippet_function_location, target_function_location in result_set:
-        job_file, job_function = extract_function_locations(job_function_location)
-        hash_paths.append(job_file)
-
-        snippet_file, snippet_function = extract_function_locations(snippet_function_location)
-        hash_paths.append(snippet_file)
-
-        target_file, target_function = extract_function_locations(target_function_location)
-        hash_paths.append(target_file)
-
-    return get_real_paths(connection, hash_paths, temp_path)
-
-
-def extract_function_locations(function_location):
-    delimeter_index = function_location.index(',')
-    file_path = function_location[:delimeter_index]
-    function_line = function_location[delimeter_index + 1:].replace(',', '-')
-    return file_path, function_line
-
-
-def get_snippet(source, ref, file_path, function_line):
-    repo = extract_github_repo(source)
-    job_file_content = retrieve_file_content(repo, ref, file_path)
-    return extract_snippet(job_file_content, function_line)
-
-
-def extract_github_repo(source):
-    match = re.search('https://github.com/([^/]+/[^/]+)/?$', source)
-    if match:
-        return match.group(1)
-    raise RuntimeError('Not from Github')
-
-
-def retrieve_file_content(repo, ref, file_path):
-    params = {'ref': ref}
-    headers = {'Accept': 'application/vnd.github.v3+json'}
-    try:
-        auth = (os.environ['GITHUB_USERNAME'], os.environ['GITHUB_TOKEN'])
-    except KeyError:
-        auth = None
-
-    r = requests.get(f'https://api.github.com/repos/{repo}/contents/{file_path}', params=params, headers=headers, auth=auth)
-    if r.status_code == 200:
-        return base64.b64decode(r.json()['content']).decode()
-    elif r.status_code == 404:
-        params = {'ref': 'v' + ref}
-        r = requests.get(f'https://api.github.com/repos/{repo}/contents/{file_path}', params=params, headers=headers)
-        if r.status_code == 200:
-            return base64.b64decode(r.json()['content']).decode()
-
-    raise RuntimeError(f'Request of file {file_path} from {repo} - {ref} returns {r.status_code}')
-
-
-def extract_snippet(text, location):
-    # Because location starting at 1 and including the last line
-    start = int(location.split('-')[0]) - 1
-    end = int(location.split('-')[1])
-    return '\n'.join(text.split('\n')[start:end])
 
 
 def get_statuses(cursor):
