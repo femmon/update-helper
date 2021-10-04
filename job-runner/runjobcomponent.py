@@ -244,6 +244,10 @@ def extract_function_locations(function_location):
 def get_snippet(source, ref, file_path, function_line):
     repo = extract_github_repo(source)
     job_file_content = retrieve_file_content(repo, ref, file_path)
+    library_usage = LibraryUsage('com.google.common')
+    if not library_usage.isUsingLibrary(job_file_content, function_line):
+        print(source + ' ' + ref + ' ' + file_path + ' ' + function_line)
+        raise RuntimeError('Doesn\'t use Guava')
     return extract_snippet(job_file_content, function_line)
 
 
@@ -279,3 +283,52 @@ def extract_snippet(text, location):
     start = int(location.split('-')[0]) - 1
     end = int(location.split('-')[1])
     return '\n'.join(text.split('\n')[start:end])
+
+
+class LibraryUsage:
+    def __init__(self, root_class_name):
+        self.root_class_name = root_class_name
+        self.import_pattern = re.compile('\s*import\s+(static\s+)?'+ root_class_name + '([\w\.\-\*]*)\s*;\s*$')
+
+    def isUsingLibrary(self, file_content, function_location):
+        imported_packages = self.extractImportedPackages(file_content)
+        print(imported_packages)
+
+        function_content =  extract_snippet(file_content, function_location)
+        # Using library with fully-qualified name instead of doing import
+        if self.root_class_name in function_content:
+            return True
+
+        if len(imported_packages) == 0:
+            return False
+
+        if '*' in imported_packages:
+            return True
+
+        for imported_package in imported_packages:
+            if self.isUsingPackage(function_content, imported_package):
+                return True
+
+        return False
+
+    def extractImportedPackages(self, file_content):
+        imported_packages = set()
+        for line in file_content.split('\n'):
+            m = self.import_pattern.match(line)
+            if m:
+                imported_package = m.group(2).split('.')[-1]
+                if imported_package == '':
+                    imported_packages.add(self.root_class_name.split('.')[-1])
+                else:
+                    imported_packages.add(imported_package)
+        return imported_packages
+
+    def isUsingPackage(self, text, package):
+        pattern = '[@\({\s]?' + package + '[\.\(\);\s]'
+        if re.search(pattern, text):
+            print(package)
+            print(text)
+            print(re.search(pattern, text))
+            return True
+
+        return False
