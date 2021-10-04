@@ -28,10 +28,16 @@ def get_job():
                 'result_id': result[4],
                 'original_file_path': result[5],
                 'original_function_location': result[6],
+                'original_snippet': result[11],
                 'clone_source': result[7],
                 'clone_version': result[8],
                 'clone_file_path': result[9],
-                'clone_function_location': result[10]
+                'clone_function_location': result[10],
+                'clone_snippet': result[12],
+                'upgraded_version': result[13],
+                'upgraded_file_path': result[14],
+                'upgraded_function_location': result[15],
+                'upgraded_snippet': result[16]
             } for result in job_results if result[4] is not None]
         } for job_id, job_results in jobs.items()]
         return jsonify(res)

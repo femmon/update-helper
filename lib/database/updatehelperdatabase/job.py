@@ -4,13 +4,20 @@ import uuid
 def get_jobs(connection):
     with connection.cursor() as cursor:
         get_job_query = '''
-            SELECT DISTINCTROW J.job_id, J.source, J.commit, S.label, R.job_result_id, F1.real_path, R.job_function, SP.source, SP.project_version, F2.real_path, R.snippet_function
+            SELECT DISTINCTROW
+                J.job_id, J.source, J.commit, S.label,
+                R.job_result_id, F1.real_path, R.job_function,
+                SP.source, SP.project_version, F2.real_path, R.snippet_function,
+                R.job_real_snippet, R.snippet_real_snippet,
+                SP2.project_version, F3.real_path, R.target_function, R.target_real_snippet
             FROM `update_helper`.`job` AS J
             LEFT JOIN `update_helper`.`job_component` AS C ON J.job_id = C.job_id
             LEFT JOIN `update_helper`.`job_result` AS R ON C.job_component_id = R.job_component_id
             LEFT JOIN `update_helper`.`snippet` AS SP ON C.snippet_id = SP.snippet_id
             LEFT JOIN `update_helper`.`file` AS F1 ON R.job_file_id = F1.file_id
             LEFT JOIN `update_helper`.`file` AS F2 ON R.snippet_file_id = F2.file_id
+            LEFT JOIN `update_helper`.`snippet` AS SP2 ON C.target_id = SP2.snippet_id
+            LEFT JOIN `update_helper`.`file` AS F3 ON R.target_file_id = F3.file_id
             JOIN `update_helper`.`status` AS S ON J.job_status = S.status_id
             ORDER BY J.job_id
         '''
