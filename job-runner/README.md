@@ -1,7 +1,7 @@
 # **Job Runner**
 
 # Requirements
- - AWS Lambda: the function needs to be configured with at least 7GB of memory (when detecting clones, Oreo set the memory reserve of Java to [10GB](https://github.com/Mondego/oreo-artifact/blob/474e3a7d06b3ff75b8778ba75d99f0e551bd6ecc/oreo/clone-detector/runnodes.sh#L22)) and 15 minutes of timeout. SQS trigger needs to have a batch size of 2.
+ - AWS Lambda: the function needs to be configured with at least 7GB of memory (when detecting clones, Oreo set the memory reserve of Java to [10GB](https://github.com/Mondego/oreo-artifact/blob/474e3a7d06b3ff75b8778ba75d99f0e551bd6ecc/oreo/clone-detector/runnodes.sh#L22)) and 15 minutes of timeout. SQS trigger needs to have a batch size of 1.
  - AWS ECR: create a repo named `update-helper` to store the image consumed by Lambda.
  - AWS EFS: without EFS, Lambda only has access to 512MB of write storage, which can be lacking. An EFS is needed to be mount to `/mnt/tmp` for the lambda function to run when deployed.
  - Docker

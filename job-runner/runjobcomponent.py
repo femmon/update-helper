@@ -210,6 +210,10 @@ def augment_result(connection, job_source, job_commit, snippet_source, snippet_v
                 print(e)
                 continue
 
+            # Ignore exact duplicate
+            if re.sub(r'\s+', '', snippet_real_snippet) == re.sub(r'\s+', '', target_real_snippet):
+                continue
+
             data_writer.writerow([
                 job_file, job_function, job_real_snippet,
                 snippet_file, snippet_function, snippet_real_snippet,
