@@ -123,7 +123,10 @@ def main(connection, s3, from_project, from_version):
                 VERSION_SEPERATOR = '-----------------------------'
                 print(VERSION_SEPERATOR)
 
-                guava_version = find_guava_version(guava_versions, project_name, project_version)
+                try:
+                    guava_version = find_guava_version(guava_versions, project_name, project_version)
+                except urllib.error.HTTPError:
+                    continue
                 if guava_version is None:
                     log_progress(f'{source} ({project_name}) at version {project_version} doesn\'t use Guava')
                     continue
