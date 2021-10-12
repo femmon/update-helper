@@ -50,18 +50,17 @@ def initjob(workspace_path, oreo_controller, connection, body):
         if os.stat(oreo_controller.snippet_path).st_size == 0:
             status = statuses['FINISHED']
         else:
-            MAX_NO_OF_COMPARE = 10
             similar_project_query = '''
                 SELECT S.snippet_id, S.snippet_file, S.source, S.project_version FROM snippet AS S JOIN (
                     SELECT full_project.source FROM (
                         SELECT DISTINCTROW A.source
                         FROM snippet AS A JOIN snippet AS B ON A.source = B.source
                         WHERE A.guava_version = %s and B.guava_version = %s
-                    ) AS full_project ORDER BY RAND() LIMIT %s
+                    ) AS full_project
                 ) AS project ON S.source = project.source
                 WHERE S.guava_version = %s
             '''
-            cursor.execute(similar_project_query, (body['source_guava_version'], body['target_guava_version'], MAX_NO_OF_COMPARE, body['source_guava_version']))
+            cursor.execute(similar_project_query, (body['source_guava_version'], body['target_guava_version'], body['source_guava_version']))
             similar_snippets = cursor.fetchall()
             similar_snippets_by_source = {}
             for snippet_id, snippet_file, snippet_source, snippet_project_version in similar_snippets:
@@ -70,16 +69,12 @@ def initjob(workspace_path, oreo_controller, connection, body):
                 similar_snippets_by_source[snippet_source].append((snippet_id, snippet_file, snippet_project_version))
 
             similar_snippets = []
-            remaining_projects = len(similar_snippets_by_source)
             for project_versions in similar_snippets_by_source.values():
-                # Might not be required
-                if len(similar_snippets) >= MAX_NO_OF_COMPARE:
-                    break
                 project_versions = sort_version(project_versions, key=2)
-                no_snippet_from_current_project = math.ceil((MAX_NO_OF_COMPARE - len(similar_snippets)) / remaining_projects)
-                similar_snippets += project_versions[-no_snippet_from_current_project:]
-                remaining_projects -= 1
+                # Only get one entry from each project
+                similar_snippets += project_versions[-1:]
             similar_snippets = list(map(lambda similar_snippet: (similar_snippet[0], similar_snippet[1]), similar_snippets))
+            print(similar_snippets)
             status = statuses['FINISHED'] if len(similar_snippets) == 0 else statuses['RUNNING']
 
         update_status_query = 'UPDATE `update_helper`.`job` SET job_snippet_file = %s, job_status = %s WHERE job_id = %s'
