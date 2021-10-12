@@ -137,3 +137,15 @@ CREATE TABLE `update_helper`.`job_result` (
   UNIQUE KEY (`job_component_id`, `job_file_id`, `job_function`, `snippet_file_id`, `snippet_function`, `target_file_id`, `target_function`),
   PRIMARY KEY (`job_result_id`)
 );
+
+CREATE TABLE `update_helper`.`job_component_extra` (
+  `job_component_extra_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `job_component_id` BIGINT UNSIGNED NOT NULL,
+  `total_triplet` INT UNSIGNED NOT NULL,
+  CONSTRAINT `job_component_extra_job_component_id`
+    FOREIGN KEY (`job_component_id`)
+    REFERENCES `update_helper`.`job_component` (`job_component_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  PRIMARY KEY (`job_component_extra_id`)
+);

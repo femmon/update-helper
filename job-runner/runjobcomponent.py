@@ -33,6 +33,9 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
     oreo_controller.fix_clone_input(temp_txt, temp_txt2)
 
     if not should_run(temp_txt):
+        job.update_job_component_status(connection, body['job_component_id'], 'ERROR')
+        job.update_job_component_extra(connection, body['job_component_id'], 0)
+        is_finished = job.check_and_update_finished_job(connection, body['job_id'])
         clean_up(files=temp_paths)
         return
 
@@ -40,6 +43,7 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
         oreo_controller.detect_clone(temp_txt)
     except Exception:
         job.update_job_component_status(connection, body['job_component_id'], 'ERROR')
+        job.update_job_component_extra(connection, body['job_component_id'], 0)
         is_finished = job.check_and_update_finished_job(connection, body['job_id'])
         r = requests.post(f'{SERVER_HOST}job/{body["job_id"]}', json = {
             'job_id': body['job_id'],
@@ -63,6 +67,8 @@ def run_job_component(workspace_path, oreo_controller, connection, body):
     print('Dectector finished')
 
     result_set = extract_result_set(oreo_controller, body['snippet_source'], body['snippet_version'])
+    print(f'No. of triplets: {len(result_set)}')
+    job.update_job_component_extra(connection, body['job_component_id'], len(result_set))
     augment_result(
         connection,
         body['job_source'],
@@ -180,7 +186,19 @@ def extract_result_set(oreo_controller, snippet_source, snippet_version):
         if len(matches[1]) == 0:
             continue
 
-        result_set.append((matches[0].pop(), snippet_file_location, matches[1].pop()))
+        snippet_file = snippet_file_location.split(',')[0]
+        result_target_file_location = None
+        # Prioritise target file that is the same as snippet file
+        for target_file_location in matches[1]:
+            target_file = target_file_location.split(',')[0]
+            if target_file == snippet_file:
+                result_target_file_location = target_file_location
+                break
+
+        if not result_target_file_location:
+            result_target_file_location = matches[1].pop()
+
+        result_set.append((matches[0].pop(), snippet_file_location, result_target_file_location))
 
     return result_set
 

@@ -136,3 +136,14 @@ def get_statuses(cursor):
     cursor.execute(get_status_query)
     statuses = dict((y, x) for x, y in cursor.fetchall())
     return statuses
+
+
+def update_job_component_extra(connection, job_component_id, total_triplet):
+    connection.ping(reconnect=True)
+    with connection.cursor() as cursor:
+        create_extra_query = '''
+            INSERT INTO `update_helper`.`job_component_extra`
+            VALUES (NULL, %s, %s)
+        '''
+        cursor.execute(create_extra_query, (job_component_id, total_triplet))
+    connection.commit()
