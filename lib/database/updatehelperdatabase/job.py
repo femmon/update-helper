@@ -9,7 +9,8 @@ def get_jobs(connection):
                 R.job_result_id, F1.real_path, R.job_function,
                 SP.source, SP.project_version, F2.real_path, R.snippet_function,
                 R.job_real_snippet, R.snippet_real_snippet,
-                SP2.project_version, F3.real_path, R.target_function, R.target_real_snippet
+                SP2.project_version, F3.real_path, R.target_function, R.target_real_snippet,
+                J.source_guava_version, J.target_guava_version
             FROM `update_helper`.`job` AS J
             LEFT JOIN `update_helper`.`job_component` AS C ON J.job_id = C.job_id
             LEFT JOIN `update_helper`.`job_result` AS R ON C.job_component_id = R.job_component_id

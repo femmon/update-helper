@@ -24,6 +24,8 @@ def get_job():
             'job_source': job_results[0][1],
             'job_commit': job_results[0][2],
             'job_status': job_results[0][3],
+            'source_guava_version': job_results[0][17],
+            'target_guava_version': job_results[0][18],
             'results': [{
                 'result_id': result[4],
                 'original_file_path': result[5],
